@@ -43,7 +43,7 @@ def adicionar():
     return render_template('adicionar.html')
 
 if __name__ == '__main__':
-    init_db()  # Garante que o banco será criado antes de rodar o Flask
+    init_db()  # Cria o banco caso não exista
     import os
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
