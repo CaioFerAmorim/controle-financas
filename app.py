@@ -16,6 +16,10 @@ def init_db():
     conn.commit()
     conn.close()
 
+# --------------------------
+# Rotas
+# --------------------------
+
 @app.route('/')
 def index():
     conn = sqlite3.connect('financas.db')
@@ -26,6 +30,18 @@ def index():
     saldo = c.fetchone()[0] or 0
     conn.close()
     return render_template('index.html', transacoes=transacoes, saldo=saldo)
+
+@app.route('/lancamentos')
+def lancamentos():
+    return render_template('lancamentos.html')
+
+@app.route('/projecoes')
+def projecoes():
+    return render_template('projecoes.html')
+
+@app.route('/visaoGeral')
+def visaoGeral():
+    return render_template('visaoGeral.html')
 
 @app.route('/adicionar', methods=['GET', 'POST'])
 def adicionar():
@@ -42,6 +58,9 @@ def adicionar():
         return redirect('/')
     return render_template('adicionar.html')
 
+# --------------------------
+# Main
+# --------------------------
 if __name__ == '__main__':
     init_db()  # Cria o banco caso não exista
     import os
