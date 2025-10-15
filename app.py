@@ -33,7 +33,43 @@ def index():
 
 @app.route('/lancamentos')
 def lancamentos():
-    return render_template('lancamentos.html')
+    conn = sqlite3.connect('financas.db')
+    c = conn.cursor()
+    c.execute("SELECT id, descricao, tipo, valor FROM transacoes")
+    lancamentos = c.fetchall()
+    conn.close()
+    return render_template('lancamentos.html', lancamentos=lancamentos)
+
+@app.route('/api/adicionar_lancamento', methods=['POST'])
+def api_adicionar_lancamento():
+    data = request.get_json()
+    descricao = data.get("descricao")
+    tipo = data.get("tipo")
+    valor = float(data.get("valor"))
+
+    conn = sqlite3.connect("financas.db")
+    c = conn.cursor()
+    c.execute("INSERT INTO transacoes (tipo, descricao, valor) VALUES (?, ?, ?)",
+              (tipo, descricao, valor))
+    conn.commit()
+    lancamento_id = c.lastrowid
+    conn.close()
+
+    return {"success": True, "id": lancamento_id}
+
+@app.route("/api/remover_lancamento", methods=["POST"])
+def remover_lancamento():
+    data = request.get_json()
+    lancamento_id = data.get("id")
+    if not lancamento_id:
+        return {"success": False, "error": "ID não fornecido"}
+
+    conn = sqlite3.connect("financas.db")
+    c = conn.cursor()
+    c.execute("DELETE FROM transacoes WHERE id = ?", (lancamento_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True}
 
 @app.route('/projecoes')
 def projecoes():

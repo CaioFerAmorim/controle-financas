@@ -55,8 +55,80 @@
             transform: scale(1.05);
         }
 
+        /* Container e boxes comuns */
         .container-body {
             padding: 30px;
+        }
+
+        .container-flex {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .table-box {
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            width: 45%;
+            background-color: #f8f9fa;
+        }
+
+        .table-box h1 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* -----------------------------
+Tabelas Despesas e Receitas
+------------------------------ */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            /* crucial para alinhamento */
+        }
+
+        th,
+        td {
+            padding: 8px 12px;
+            vertical-align: middle;
+            border-bottom: 1px solid #dee2e6;
+            overflow: hidden;
+            /* evita que conteúdo quebre layout */
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Última coluna: ações */
+        th:last-child,
+        td:last-child {
+            width: 100px;
+            /* largura fixa */
+            text-align: center;
+            /* centraliza conteúdo */
+        }
+
+        /* Valores alinhados à direita */
+        td:nth-child(3),
+        /* Despesas */
+        td:nth-child(2)
+
+        /* Receitas */
+            {
+            text-align: right;
+            padding-right: 8px;
+            /* pequeno espaço do botão */
+        }
+
+        /* Botões centralizados */
+        td:last-child button {
+            display: inline-block;
+            margin: 0 auto;
         }
     </style>
 </head>
@@ -84,66 +156,179 @@
     <!-- Corpo -->
     <div class="container-body">
 
-        <!-- Formulário para adicionar lançamento -->
-        <form id="formLancamento" class="mb-4">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <input type="text" class="form-control" id="compra" placeholder="Compra" required>
-                </div>
-                <div class="col-md-4">
-                    <input type="text" class="form-control" id="categoria" placeholder="Categoria" required>
-                </div>
-                <div class="col-md-4">
-                    <input type="number" class="form-control" id="valor" placeholder="Valor" step="0.01" required>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-success mt-3">Adicionar Lançamento</button>
-        </form>
+        <div class="container-flex">
+            <!-- BLOCO DESPESAS -->
+            <div class="table-box">
+                <h1>Despesas</h1>
+                <form id="formDespesas" class="mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" id="compra" placeholder="Compra" required>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" id="categoria" placeholder="Categoria" required>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="number" class="form-control" id="valor" placeholder="Valor" step="0.01"
+                                required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success mt-3">Adicionar Despesa</button>
+                </form>
 
-        <!-- Tabela de lançamentos -->
-        <table class="table table-striped" id="tabelaLancamentos">
-            <thead class="table-dark">
-                <tr>
-                    <th>#</th>
-                    <th>Compra</th>
-                    <th>Categoria</th>
-                    <th>Valor (R$)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Linhas serão adicionadas pelo JavaScript -->
-            </tbody>
-        </table>
+                <table class="table table-striped" id="tabelaDespesas">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Compra</th>
+                            <th>Categoria</th>
+                            <th>Valor (R$)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- BLOCO RECEITAS -->
+            <div class="table-box">
+                <h1>Receitas</h1>
+                <form id="formReceitas" class="mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control" id="receita" placeholder="Receita" required>
+                        </div>
+                        <div class="col-md-6">
+                            <input type="number" class="form-control" id="valorReceita" placeholder="Valor" step="0.01"
+                                required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success mt-3">Adicionar Receita</button>
+                </form>
+
+                <table class="table table-striped" id="tabelaReceitas">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Receita</th>
+                            <th>Valor (R$)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
 
     </div>
 
-    <script>
-        const form = document.getElementById('formLancamento');
-        const tabela = document.getElementById('tabelaLancamentos').querySelector('tbody');
-        let contador = 1;
+    <script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function () {
 
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
+            // Seleciona as tabelas
+            const tabelaDespesas = document.querySelector("#tabelaDespesas tbody");
+            const tabelaReceitas = document.querySelector("#tabelaReceitas tbody");
 
-            const compra = document.getElementById('compra').value;
-            const categoria = document.getElementById('categoria').value;
-            const valor = parseFloat(document.getElementById('valor').value).toFixed(2);
+            // Dados do Flask convertidos em JSON
+            const lancamentos = {{ lancamentos | tojson | safe
+        }};
 
-            const linha = document.createElement('tr');
-            linha.innerHTML = `
-                <td>${contador}</td>
-                <td>${compra}</td>
-                <td>${categoria}</td>
-                <td>${valor}</td>
-            `;
+        // Função genérica para adicionar linha em qualquer tabela
+        function adicionarLinha(tabela, id, descricao, tipo, valor) {
+            const tr = document.createElement("tr");
+            tr.dataset.id = id; // guarda o ID do lançamento
+            tr.innerHTML = `
+            <td>${descricao}</td>
+            <td>${tipo || ''}</td>
+            <td>R$ ${parseFloat(valor).toFixed(2)}</td>
+            <td class="text-center">
+                <button class="btn btn-danger btn-sm">Remover</button>
+            </td>
+        `;
+            tabela.appendChild(tr);
 
-            tabela.appendChild(linha);
-            contador++;
+            // Evento para remover do DOM e do banco
+            tr.querySelector("button").addEventListener("click", () => {
+                fetch("/api/remover_lancamento", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: tr.dataset.id })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            tr.remove();
+                        } else {
+                            alert("Erro ao remover do banco");
+                        }
+                    });
+            });
+        }
 
-            // Limpa o formulário
-            form.reset();
+        // Carrega os lançamentos existentes
+        lancamentos.forEach(l => {
+            const id = l[0];       // ID do banco
+            const descricao = l[1];
+            const tipo = l[2];
+            const valor = l[3];
+
+            if (tipo) {
+                // Despesa
+                adicionarLinha(tabelaDespesas, id, descricao, tipo, valor);
+            } else {
+                // Receita
+                adicionarLinha(tabelaReceitas, id, descricao, '', valor);
+            }
         });
+
+        // -------------------------------
+        // Formulário de Despesas
+        // -------------------------------
+        const formDespesas = document.getElementById("formDespesas");
+        formDespesas.addEventListener("submit", function (e) {
+            e.preventDefault();
+            const descricao = document.getElementById("compra").value;
+            const tipo = document.getElementById("categoria").value;
+            const valor = document.getElementById("valor").value;
+
+            fetch("/api/adicionar_lancamento", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ descricao, tipo, valor })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        adicionarLinha(tabelaDespesas, data.id, descricao, tipo, valor);
+                        formDespesas.reset();
+                    }
+                });
+        });
+
+        // -------------------------------
+        // Formulário de Receitas
+        // -------------------------------
+        const formReceitas = document.getElementById("formReceitas");
+        formReceitas.addEventListener("submit", function (e) {
+            e.preventDefault();
+            const descricao = document.getElementById("receita").value;
+            const valor = document.getElementById("valorReceita").value;
+
+            fetch("/api/adicionar_lancamento", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ descricao, tipo: '', valor })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        adicionarLinha(tabelaReceitas, data.id, descricao, '', valor);
+                        formReceitas.reset();
+                    }
+                });
+        });
+
+});
     </script>
+
 
 </body>
 
