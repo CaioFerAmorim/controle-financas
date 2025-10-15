@@ -48,41 +48,36 @@
         <div class="container mt-4">
             <div class="row g-4">
 
-                <!-- DESPESAS -->
+                <!-- RECEITAS -->
                 <div class="col-md-12">
                     <div class="card shadow-sm">
                         <div class="card-header bg-dark text-white text-center">
-                            Despesas
+                            Receitas
                         </div>
                         <div class="card-body">
-                            <form id="formDespesas" class="mb-3">
+                            <form id="formReceitas" class="mb-3">
                                 <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <input type="text" class="form-control" id="compra" placeholder="Compra"
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" id="receita" placeholder="Receita"
                                             required>
                                     </div>
-                                    <div class="col-md-4">
-                                        <input type="text" class="form-control" id="categoria" placeholder="Categoria"
-                                            required>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <input type="number" class="form-control" id="valor" placeholder="Valor"
+                                    <div class="col-md-6">
+                                        <input type="number" class="form-control" id="valorReceita" placeholder="Valor"
                                             step="0.01" required>
                                     </div>
                                 </div>
-                                <button type="submit" class="btn btn-success mt-3 w-100">Adicionar Despesa</button>
+                                <button type="submit" class="btn btn-success mt-3 w-100">Adicionar Receita</button>
                             </form>
 
                             <table class="table table-striped table-hover">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th class="col-md-4">Compra</th>
-                                        <th>Categoria</th>
+                                        <th>Receita</th>
                                         <th class="text-end">Valor (R$)</th>
                                         <th class="text-center">Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tabelaDespesas"></tbody>
+                                <tbody id="tabelaReceitas"></tbody>
                             </table>
                         </div>
                     </div>
@@ -93,24 +88,23 @@
         <script type="text/javascript">
             document.addEventListener("DOMContentLoaded", function () {
 
-                const tabelaDespesas = document.querySelector("#tabelaDespesas");
-                const lancamentos = {{ lancamentos | tojson | safe}};
+                const tabelaReceitas = document.querySelector("#tabelaReceitas");
+                const lancamentos = {{ receitas | tojson | safe}};
 
             // ------------------------
-            // Função: adicionar Despesa
+            // Função: adicionar Receita
             // ------------------------
-            function adicionarDespesa(id, descricao, categoria, valor) {
+            function adicionarReceita(id, descricao, valor) {
                 const tr = document.createElement("tr");
                 tr.dataset.id = id;
                 tr.innerHTML = `
             <td>${descricao}</td>
-            <td>${categoria}</td>
             <td class="text-end">R$ ${parseFloat(valor).toFixed(2)}</td>
             <td class="text-center">
                 <button class="btn btn-danger btn-sm">Remover</button>
             </td>
         `;
-                tabelaDespesas.appendChild(tr);
+                tabelaReceitas.appendChild(tr);
 
                 // Botão remover
                 tr.querySelector("button").addEventListener("click", () => {
@@ -130,33 +124,32 @@
             // ------------------------
             // Envio do formulário
             // ------------------------
-            document.getElementById("formDespesas").addEventListener("submit", function (e) {
+            document.getElementById("formReceitas").addEventListener("submit", function (e) {
                 e.preventDefault();
-                const descricao = document.getElementById("compra").value;
-                const categoria = document.getElementById("categoria").value;
-                const valor = document.getElementById("valor").value;
+                const descricao = document.getElementById("receita").value;
+                const valor = document.getElementById("valorReceita").value;
 
                 fetch("/api/adicionar_lancamento", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ descricao, tipo: categoria || "despesa", valor })
+                    body: JSON.stringify({ descricao, tipo: "receita", valor })
                 })
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            adicionarDespesa(data.id, descricao, categoria, valor);
+                            adicionarReceita(data.id, descricao, valor);
                             this.reset();
                         }
                     });
             });
 
             // ------------------------
-            // Carregar despesas existentes
+            // Carregar receitas existentes
             // ------------------------
             lancamentos.forEach(l => {
                 const [id, descricao, tipo, valor] = l;
-                if (tipo !== "receita") {
-                    adicionarDespesa(id, descricao, tipo, valor);
+                if (tipo === "receita") {
+                    adicionarReceita(id, descricao, valor);
                 }
             });
         });

@@ -94,6 +94,15 @@ def adicionar():
         return redirect('/')
     return render_template('adicionar.html')
 
+@app.route('/lancamentosReceita')
+def lancamentosReceita():
+    conn = sqlite3.connect('financas.db')
+    c = conn.cursor()
+    c.execute("SELECT id, descricao, tipo, valor FROM transacoes")
+    receitas = c.fetchall()
+    conn.close()
+    return render_template('lancamentosReceita.html', receitas=receitas)
+
 # --------------------------
 # Main
 # --------------------------
