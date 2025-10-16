@@ -3,41 +3,45 @@ import sqlite3
 
 app = Flask(__name__)
 
-# Banco de dados inicial
+# --------------------------
+# Inicialização do banco
+# --------------------------
 def init_db():
-    conn = sqlite3.connect('financas.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS transacoes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tipo TEXT,
-                    descricao TEXT,
-                    valor REAL
-                )''')
-    conn.commit()
-    conn.close()
+    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS transacoes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        tipo TEXT,
+                        descricao TEXT,
+                        valor REAL
+                    )''')
+
+        c.execute('''CREATE TABLE IF NOT EXISTS categorias (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nome TEXT UNIQUE NOT NULL
+                    )''')
+        conn.commit()
 
 # --------------------------
-# Rotas
+# Rotas principais
 # --------------------------
 
 @app.route('/')
 def index():
-    conn = sqlite3.connect('financas.db')
-    c = conn.cursor()
-    c.execute("SELECT * FROM transacoes")
-    transacoes = c.fetchall()
-    c.execute("SELECT SUM(CASE WHEN tipo='receita' THEN valor ELSE -valor END) FROM transacoes")
-    saldo = c.fetchone()[0] or 0
-    conn.close()
+    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM transacoes")
+        transacoes = c.fetchall()
+        c.execute("SELECT SUM(CASE WHEN tipo='receita' THEN valor ELSE -valor END) FROM transacoes")
+        saldo = c.fetchone()[0] or 0
     return render_template('index.html', transacoes=transacoes, saldo=saldo)
 
 @app.route('/lancamentos')
 def lancamentos():
-    conn = sqlite3.connect('financas.db')
-    c = conn.cursor()
-    c.execute("SELECT id, descricao, tipo, valor FROM transacoes")
-    lancamentos = c.fetchall()
-    conn.close()
+    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, descricao, tipo, valor FROM transacoes")
+        lancamentos = c.fetchall()
     return render_template('lancamentos.html', lancamentos=lancamentos)
 
 @app.route('/api/adicionar_lancamento', methods=['POST'])
@@ -47,13 +51,12 @@ def api_adicionar_lancamento():
     tipo = data.get("tipo")
     valor = float(data.get("valor"))
 
-    conn = sqlite3.connect("financas.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO transacoes (tipo, descricao, valor) VALUES (?, ?, ?)",
-              (tipo, descricao, valor))
-    conn.commit()
-    lancamento_id = c.lastrowid
-    conn.close()
+    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute("INSERT INTO transacoes (tipo, descricao, valor) VALUES (?, ?, ?)",
+                  (tipo, descricao, valor))
+        conn.commit()
+        lancamento_id = c.lastrowid
 
     return {"success": True, "id": lancamento_id}
 
@@ -64,11 +67,10 @@ def remover_lancamento():
     if not lancamento_id:
         return {"success": False, "error": "ID não fornecido"}
 
-    conn = sqlite3.connect("financas.db")
-    c = conn.cursor()
-    c.execute("DELETE FROM transacoes WHERE id = ?", (lancamento_id,))
-    conn.commit()
-    conn.close()
+    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute("DELETE FROM transacoes WHERE id = ?", (lancamento_id,))
+        conn.commit()
     return {"success": True}
 
 @app.route('/projecoes')
@@ -86,28 +88,81 @@ def adicionar():
         descricao = request.form['descricao']
         valor = float(request.form['valor'])
 
-        conn = sqlite3.connect('financas.db')
-        c = conn.cursor()
-        c.execute("INSERT INTO transacoes (tipo, descricao, valor) VALUES (?, ?, ?)", (tipo, descricao, valor))
-        conn.commit()
-        conn.close()
+        with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO transacoes (tipo, descricao, valor) VALUES (?, ?, ?)", (tipo, descricao, valor))
+            conn.commit()
         return redirect('/')
     return render_template('adicionar.html')
 
 @app.route('/lancamentosReceita')
 def lancamentosReceita():
-    conn = sqlite3.connect('financas.db')
-    c = conn.cursor()
-    c.execute("SELECT id, descricao, tipo, valor FROM transacoes")
-    receitas = c.fetchall()
-    conn.close()
+    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, descricao, tipo, valor FROM transacoes")
+        receitas = c.fetchall()
     return render_template('lancamentosReceita.html', receitas=receitas)
+
+# --------------------------
+# Categorias
+# --------------------------
+
+@app.route('/lancamentosCategorias')
+def lancamentosCategorias():
+    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, nome FROM categorias ORDER BY nome")
+        categorias = c.fetchall() or []  # garante que seja lista
+    return render_template('lancamentosCategorias.html', categorias=categorias)
+
+@app.route('/api/categorias')
+def listar_categorias():
+    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, nome FROM categorias ORDER BY nome")
+        categorias = c.fetchall()
+    return {"categorias": [{"id": id, "nome": nome} for id, nome in categorias]}
+
+@app.route("/api/adicionar_categoria", methods=["POST"])
+def adicionar_categoria():
+    data = request.get_json()
+    nome = data.get("nome", "").strip()
+    if not nome:
+        return {"success": False, "error": "Nome da categoria obrigatório"}
+
+    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+        c = conn.cursor()
+        try:
+            c.execute("INSERT INTO categorias (nome) VALUES (?)", (nome,))
+            conn.commit()
+            categoria_id = c.lastrowid
+            success = True
+        except sqlite3.IntegrityError:
+            success = False
+            categoria_id = None
+
+    if not success:
+        return {"success": False, "error": "Categoria já existente"}
+    return {"success": True, "id": categoria_id, "nome": nome}
+
+@app.route("/api/remover_categoria", methods=["POST"])
+def remover_categoria():
+    data = request.get_json()
+    categoria_id = data.get("id")
+    if not categoria_id:
+        return {"success": False, "error": "ID não fornecido"}
+
+    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+        c = conn.cursor()
+        c.execute("DELETE FROM categorias WHERE id = ?", (categoria_id,))
+        conn.commit()
+    return {"success": True}
 
 # --------------------------
 # Main
 # --------------------------
 if __name__ == '__main__':
-    init_db()  # Cria o banco caso não exista
+    init_db()
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
