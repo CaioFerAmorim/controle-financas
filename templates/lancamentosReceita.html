@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Lançamentos - Controle de Finanças</title>
+    <title>Receitas - Controle de Finanças</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
@@ -34,7 +34,8 @@
         <nav class="bg-dark text-white vh-100 p-3" style="width: 200px;">
             <h4>Opções</h4>
             <ul class="nav flex-column">
-                <li class="nav-item"><a href="{{ url_for('lancamentos') }}" class="nav-link text-white">Despesas</a></li>
+                <li class="nav-item"><a href="{{ url_for('lancamentos') }}" class="nav-link text-white">Despesas</a>
+                </li>
                 <li class="nav-item"><a href="{{ url_for('lancamentosReceita') }}"
                         class="nav-link text-white">Receitas</a></li>
                 <li class="nav-item"><a href="{{ url_for('lancamentosCategorias') }}"
@@ -117,19 +118,18 @@
 
         let receitasAtuais = [];
 
-        // Adicionar receita na tabela
         function adicionarReceita(id, descricao, categoria, valor) {
             const tr = document.createElement("tr");
             tr.dataset.id = id;
             tr.dataset.descricao = descricao.toLowerCase();
             tr.dataset.categoria = categoria;
             tr.innerHTML = `
-                <td>${descricao}</td>
-                <td class="text-end">${categoria}</td>
-                <td class="text-end">R$ ${parseFloat(valor).toFixed(2)}</td>
-                <td class="text-center">
-                    <button class="btn btn-danger btn-sm">Remover</button>
-                </td>`;
+            <td>${descricao}</td>
+            <td class="text-end">${categoria}</td>
+            <td class="text-end">R$ ${parseFloat(valor).toFixed(2)}</td>
+            <td class="text-center">
+                <button class="btn btn-danger btn-sm">Remover</button>
+            </td>`;
             tabelaReceitas.appendChild(tr);
 
             tr.querySelector("button").addEventListener("click", () => {
@@ -148,13 +148,12 @@
             receitasAtuais.push({ id, descricao, categoria, valor });
         }
 
-        // Carregar receitas existentes
+        // 🔹 Agora usamos a categoria real, não "Ocasional"
         lancamentos.forEach(l => {
-            const [id, descricao, tipo, valor] = l;
-            if (tipo === "receita") adicionarReceita(id, descricao, "Ocasional", valor);
+            const [id, descricao, tipo, valor, categoria] = l;
+            if (tipo === "receita") adicionarReceita(id, descricao, categoria || "", valor);
         });
 
-        // Envio do formulário
         document.getElementById("formReceitas").addEventListener("submit", function (e) {
             e.preventDefault();
             const descricao = document.getElementById("receita").value;
@@ -164,7 +163,7 @@
             fetch("/api/adicionar_lancamento", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ descricao, tipo: "receita", valor, categoria_receita: categoria })
+                body: JSON.stringify({ descricao, tipo: "receita", valor, categoria })
             }).then(r => r.json()).then(data => {
                 if (data.success) {
                     adicionarReceita(data.id, descricao, categoria, valor);
@@ -174,7 +173,6 @@
             });
         });
 
-        // Função de filtro
         function aplicarFiltro() {
             const nomeFiltro = filtroNome.value.toLowerCase();
             const categoriaFiltro = filtroCategoria.value;
@@ -188,9 +186,9 @@
 
         filtroNome.addEventListener("input", aplicarFiltro);
         filtroCategoria.addEventListener("change", aplicarFiltro);
-
-    });
+});
     </script>
+
 
 </body>
 
