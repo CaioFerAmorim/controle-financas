@@ -5,7 +5,33 @@
     <meta charset="UTF-8">
     <title>Controle de Finanças</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
+    <style>
+        .card-dashboard {
+            transition: transform 0.2s;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-dashboard:hover {
+            transform: translateY(-5px);
+        }
+        .positive {
+            color: #28a745;
+        }
+        .negative {
+            color: #dc3545;
+        }
+        .neutral {
+            color: #6c757d;
+        }
+        .quick-action-btn {
+            transition: all 0.3s;
+        }
+        .quick-action-btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
 </head>
 
 <body class="bg-light">
@@ -30,9 +56,259 @@
         </div>
     </header>
 
-    <div class="body">
+    <div class="container mt-4">
+        <!-- Ações Rápidas -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card card-dashboard">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-lightning-fill text-warning me-2"></i>Ações Rápidas</h5>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ url_for('lancamentos') }}" class="btn btn-outline-primary quick-action-btn">
+                                <i class="bi bi-plus-circle me-2"></i>Nova Despesa
+                            </a>
+                            <a href="{{ url_for('lancamentosReceita') }}" class="btn btn-outline-success quick-action-btn">
+                                <i class="bi bi-currency-dollar me-2"></i>Nova Receita
+                            </a>
+                            <a href="{{ url_for('lancamentosConta') }}" class="btn btn-outline-info quick-action-btn">
+                                <i class="bi bi-bank me-2"></i>Gerenciar Contas
+                            </a>
+                            <a href="{{ url_for('lancamentosCartao') }}" class="btn btn-outline-warning quick-action-btn">
+                                <i class="bi bi-credit-card me-2"></i>Gerenciar Cartões
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
+        <!-- Painéis Principais -->
+        <div class="row mb-4">
+            <!-- Saldo Total nas Contas -->
+            <div class="col-md-3 mb-3">
+                <div class="card card-dashboard border-success">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title text-muted">Saldo Total</h6>
+                                <h3 class="positive" id="saldoTotal">R$ {{ "%.2f"|format(saldo_total) if saldo_total else "0,00" }}</h3>
+                            </div>
+                            <div class="bg-success bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-wallet2 text-success" style="font-size: 2rem;"></i>
+                            </div>
+                        </div>
+                        <small class="text-muted">Saldo disponível em todas as contas</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Gasto no Crédito -->
+            <div class="col-md-3 mb-3">
+                <div class="card card-dashboard border-warning">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title text-muted">Gasto no Crédito</h6>
+                                <h3 class="negative" id="gastoCredito">R$ {{ "%.2f"|format(gasto_credito) if gasto_credito else "0,00" }}</h3>
+                            </div>
+                            <div class="bg-warning bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-credit-card text-warning" style="font-size: 2rem;"></i>
+                            </div>
+                        </div>
+                        <small class="text-muted">Total gasto em cartões de crédito</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Disponível no Mês -->
+            <div class="col-md-3 mb-3">
+                <div class="card card-dashboard border-primary">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title text-muted">Disponível Mês</h6>
+                                <h3 class="positive" id="disponivelMes">R$ {{ "%.2f"|format(disponivel_mes) if disponivel_mes else "0,00" }}</h3>
+                            </div>
+                            <div class="bg-primary bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-graph-up text-primary" style="font-size: 2rem;"></i>
+                            </div>
+                        </div>
+                        <small class="text-muted">Receitas + Saldo - Gastos Crédito</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total de Receitas do Mês -->
+            <div class="col-md-3 mb-3">
+                <div class="card card-dashboard border-info">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title text-muted">Receitas Mês</h6>
+                                <h3 class="positive" id="receitasMes">R$ {{ "%.2f"|format(receitas_mes) if receitas_mes else "0,00" }}</h3>
+                            </div>
+                            <div class="bg-info bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-arrow-up-circle text-info" style="font-size: 2rem;"></i>
+                            </div>
+                        </div>
+                        <small class="text-muted">Total de receitas este mês</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Segunda Linha de Painéis -->
+        <div class="row mb-4">
+            <!-- Próximos Vencimentos -->
+            <div class="col-md-4 mb-3">
+                <div class="card card-dashboard border-danger">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="card-title text-muted mb-0">Próximos Vencimentos</h6>
+                            <i class="bi bi-calendar-x text-danger"></i>
+                        </div>
+                        <div id="proximosVencimentos">
+                            {% if proximos_vencimentos %}
+                                {% for vencimento in proximos_vencimentos %}
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <div>
+                                        <small class="fw-bold">{{ vencimento.descricao }}</small>
+                                        <br>
+                                        <small class="text-muted">{{ vencimento.data }}</small>
+                                    </div>
+                                    <span class="badge bg-danger">R$ {{ "%.2f"|format(vencimento.valor) }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted text-center mb-0">Nenhum vencimento próximo</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metas do Mês -->
+            <div class="col-md-4 mb-3">
+                <div class="card card-dashboard border-success">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="card-title text-muted mb-0">Metas do Mês</h6>
+                            <i class="bi bi-flag text-success"></i>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Economia Mensal</small>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-success" style="width: {{ meta_economia.percentual }}%">
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ meta_economia.atual }}/{{ meta_economia.meta }} ({{ meta_economia.percentual }}%)</small>
+                        </div>
+                        <div>
+                            <small class="text-muted">Limite de Gastos</small>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-warning" style="width: {{ meta_gastos.percentual }}%">
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ meta_gastos.atual }}/{{ meta_gastos.meta }} ({{ meta_gastos.percentual }}%)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumo por Categoria -->
+            <div class="col-md-4 mb-3">
+                <div class="card card-dashboard border-warning">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="card-title text-muted mb-0">Top Gastos por Categoria</h6>
+                            <i class="bi bi-pie-chart text-warning"></i>
+                        </div>
+                        <div id="gastosCategoria">
+                            {% if gastos_por_categoria %}
+                                {% for categoria in gastos_por_categoria %}
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <small class="fw-bold">{{ categoria.nome }}</small>
+                                    <span class="badge bg-warning">R$ {{ "%.2f"|format(categoria.total) }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted text-center mb-0">Nenhum gasto este mês</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Últimas Transações -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card card-dashboard">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Últimas Transações</h5>
+                            <a href="{{ url_for('lancamentos') }}" class="btn btn-sm btn-outline-primary">Ver Todas</a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Descrição</th>
+                                        <th>Categoria</th>
+                                        <th>Tipo</th>
+                                        <th class="text-end">Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transacao in transacoes %}
+                                    <tr>
+                                        <td>{{ transacao[6] if transacao[6] else '-' }}</td>
+                                        <td>{{ transacao[1] }}</td>
+                                        <td>{{ transacao[4] if transacao[4] else '-' }}</td>
+                                        <td>
+                                            {% if transacao[2] == 'receita' %}
+                                                <span class="badge bg-success">Receita</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Despesa</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end {% if transacao[2] == 'receita' %}positive{% else %}negative{% endif %}">
+                                            R$ {{ "%.2f"|format(transacao[3]) }}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Nenhuma transação encontrada</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Atualização automática dos valores (opcional)
+        function atualizarDashboard() {
+            fetch('/api/dashboard_data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('saldoTotal').textContent = 'R$ ' + data.saldo_total.toFixed(2);
+                    document.getElementById('gastoCredito').textContent = 'R$ ' + data.gasto_credito.toFixed(2);
+                    document.getElementById('disponivelMes').textContent = 'R$ ' + data.disponivel_mes.toFixed(2);
+                    document.getElementById('receitasMes').textContent = 'R$ ' + data.receitas_mes.toFixed(2);
+                })
+                .catch(error => console.error('Erro ao atualizar dashboard:', error));
+        }
+
+        // Atualizar a cada 30 segundos (opcional)
+        // setInterval(atualizarDashboard, 30000);
+    </script>
 
 </body>
 
