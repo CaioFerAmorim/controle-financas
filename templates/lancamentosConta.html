@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Categorias - Controle de Finanças</title>
+    <title>Contas - Controle de Finanças</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
 </head>
@@ -18,7 +18,7 @@
                     alt="Logo" class="me-3" style="width:80px; height:80px;">
                 <div>
                     <h1 class="h5 mb-0">Controle de Finanças</h1>
-                    <small>Gerencie seus gastos</small>
+                    <small>Gerencie suas contas</small>
                 </div>
             </div>
             <nav>
@@ -46,62 +46,31 @@
         <!-- Conteúdo principal -->
         <div class="container mt-4">
             <div class="row g-4">
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <div class="card shadow-sm">
-                        <div class="card-header bg-dark text-white text-center">
-                            Categorias de Despesas
-                        </div>
+                        <div class="card-header bg-dark text-white text-center">Contas</div>
                         <div class="card-body">
-                            <form id="formCategorias" class="mb-3">
-                                <div class="row g-2 align-items-center">
+                            <form id="formContas" class="mb-3">
+                                <div class="row g-2">
                                     <div class="col-md-8">
-                                        <input type="text" class="form-control" id="nomeCategoria"
-                                            placeholder="Nome da categoria" required>
+                                        <input type="text" class="form-control" id="nomeConta"
+                                            placeholder="Nome da Conta (ex: Nubank, Itau, CDB)" required>
                                     </div>
                                     <div class="col-md-4">
-                                        <button type="submit" class="btn btn-success w-100">Adicionar Categoria</button>
+                                        <button type="submit" class="btn btn-success w-100">Adicionar Conta</button>
                                     </div>
                                 </div>
                             </form>
 
-                            <table class="table table-striped table-hover mt-3">
+                            <table class="table table-striped table-hover">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th style="width: 80%;">Nome</th>
+                                        <th>Conta</th>
+                                        <th class="text-end">Saldo (R$)</th>
                                         <th class="text-center">Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tabelaCategorias"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-dark text-white text-center">
-                            Métodos de Pagamentos
-                        </div>
-                        <div class="card-body">
-                            <form id="formMetodosPagamento" class="mb-3">
-                                <div class="row g-2 align-items-center">
-                                    <div class="col-md-8">
-                                        <input type="text" class="form-control" id="nomeMetodoPagamento"
-                                            placeholder="Nome do método" required>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <button type="submit" class="btn btn-success w-100">Adicionar Método</button>
-                                    </div>
-                                </div>
-                            </form>
-
-                            <table class="table table-striped table-hover mt-3">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th style="width: 80%;">Nome</th>
-                                        <th class="text-center">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabelaMetodosPagamento"></tbody>
+                                <tbody id="tabelaContas"></tbody>
                             </table>
                         </div>
                     </div>
@@ -110,25 +79,29 @@
         </div>
     </div>
 
-    <!-- Script -->
+    <!-- Script principal -->
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            const tabelaCategorias = document.querySelector("#tabelaCategorias");
-            const formCategorias = document.getElementById("formCategorias");
-            const nomeInput = document.getElementById("nomeCategoria");
+            const tabelaContas = document.querySelector("#tabelaContas");
+            const formContas = document.getElementById("formContas");
+            const nomeInput = document.getElementById("nomeConta");
 
-            function adicionarCategoria(id, nome) {
+            // Função: adicionar conta à tabela
+            function adicionarConta(id, nome, saldo = 0) {
                 const tr = document.createElement("tr");
                 tr.dataset.id = id;
                 tr.innerHTML = `
-                <td>${nome}</td>
-                <td class="text-center">
-                    <button class="btn btn-danger btn-sm">Remover</button>
-                </td>`;
-                tabelaCategorias.appendChild(tr);
+                    <td>${nome}</td>
+                    <td class="text-end">R$ ${parseFloat(saldo).toFixed(2)}</td>
+                    <td class="text-center">
+                        <button class="btn btn-danger btn-sm">Remover</button>
+                    </td>
+                `;
+                tabelaContas.appendChild(tr);
 
+                // Botão remover
                 tr.querySelector("button").addEventListener("click", () => {
-                    fetch("/api/remover_categoria", {
+                    fetch("/api/remover_conta", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ id: tr.dataset.id })
@@ -136,17 +109,18 @@
                         .then(r => r.json())
                         .then(data => {
                             if (data.success) tr.remove();
-                            else alert("Erro ao remover categoria");
+                            else alert("Erro ao remover conta");
                         });
                 });
             }
 
-            formCategorias.addEventListener("submit", e => {
+            // Envio do formulário
+            formContas.addEventListener("submit", (e) => {
                 e.preventDefault();
                 const nome = nomeInput.value.trim();
                 if (!nome) return;
 
-                fetch("/api/adicionar_categoria", {
+                fetch("/api/adicionar_conta", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ nome })
@@ -154,25 +128,22 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            adicionarCategoria(data.id, nome);
-                            formCategorias.reset();
+                            adicionarConta(data.id, nome);
+                            formContas.reset();
                         } else {
-                            alert(data.error || "Erro ao adicionar categoria");
+                            alert(data.error || "Erro ao adicionar conta");
                         }
                     });
             });
 
-            const categoriasExistentes = {{ categorias | tojson | default ('[]') | safe
-        }};
-        categoriasExistentes.forEach(c => {
-            const [id, nome] = c;
-            adicionarCategoria(id, nome);
+            // Carregar contas existentes
+            const contasExistentes = {{ contas | tojson | default('[]') | safe }};
+            contasExistentes.forEach(c => {
+                const [id, nome, saldo] = c;
+                adicionarConta(id, nome, saldo);
+            });
         });
-    });
     </script>
 
-
-
 </body>
-
 </html>
