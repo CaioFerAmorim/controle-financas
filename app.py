@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, jsonify
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
@@ -12,7 +12,7 @@ def init_db():
     with sqlite3.connect('financas.db', check_same_thread=False) as conn:
         c = conn.cursor()
 
-        # Tabela de transações (despesas e receitas) - COM TODAS AS CORREÇÕES
+        # Tabela de transações (despesas e receitas)
         c.execute('''CREATE TABLE IF NOT EXISTS transacoes (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         tipo TEXT CHECK(tipo IN ('despesa','receita')),
@@ -32,7 +32,7 @@ def init_db():
                         FOREIGN KEY (id_conta) REFERENCES contas(id)
                     )''')
 
-        # Tabela de categorias - COM TIPO
+        # Tabela de categorias
         c.execute('''CREATE TABLE IF NOT EXISTS categorias (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         nome TEXT UNIQUE NOT NULL,
@@ -46,7 +46,7 @@ def init_db():
                         saldo REAL DEFAULT 0
                     )''')
 
-        # Tabela de cartões - CORREÇÃO APLICADA: valores sem acento
+        # Tabela de cartões
         c.execute('''CREATE TABLE IF NOT EXISTS cartoes (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         nome TEXT NOT NULL UNIQUE,
@@ -80,6 +80,207 @@ def init_db():
 
         conn.commit()
 
+# --------------------------
+# Função para calcular próximas faturas - CORRIGIDA
+# --------------------------
+def calcular_proximas_faturas():
+    """Calcula a projeção das próximas faturas (3 meses)"""
+    hoje = datetime.now()
+    proximas_faturas = []
+    
+    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+        c = conn.cursor()
+        
+        # Calcular para os próximos 3 meses
+        for meses_a_frente in range(1, 4):
+            mes_projecao = hoje.month + meses_a_frente
+            ano_projecao = hoje.year
+            
+            # Ajustar ano se passar de dezembro
+            if mes_projecao > 12:
+                mes_projecao -= 12
+                ano_projecao += 1
+            
+            # Nome do mês em português
+            meses_pt = {
+                1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
+                5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+                9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+            }
+            nome_mes = f"{meses_pt[mes_projecao]}/{ano_projecao}"
+            
+            # Calcular receitas fixas para este mês
+            c.execute("""
+                SELECT SUM(valor) FROM transacoes 
+                WHERE tipo = 'receita'
+                AND tipo_receita = 'fixa'
+            """)
+            receitas_fixas = c.fetchone()[0] or 0
+            
+            # Calcular despesas fixas para este mês
+            c.execute("""
+                SELECT SUM(valor) FROM transacoes 
+                WHERE tipo = 'despesa'
+                AND tipo_cobranca = 'fixa'
+            """)
+            despesas_fixas = c.fetchone()[0] or 0
+            
+            # Calcular despesas parceladas que estarão ativas neste mês - CORREÇÃO
+            c.execute("""
+                SELECT t.id, t.descricao, t.valor, t.parcelas, t.data_criacao, t.tipo_compra
+                FROM transacoes t
+                WHERE t.tipo = 'despesa'
+                AND t.pagamento = 'parcelado'
+                AND t.parcelas > 1
+            """)
+            despesas_parceladas = c.fetchall()
+            
+            despesas_parceladas_mes = 0
+            print(f"\n=== CÁLCULO PARCELAS MÊS {mes_projecao}/{ano_projecao} ===")
+            
+            for transacao_id, descricao, valor_total, parcelas, data_criacao, tipo_compra in despesas_parceladas:
+                if data_criacao:
+                    try:
+                        data_compra = datetime.strptime(data_criacao, '%Y-%m-%d %H:%M:%S')
+                        valor_parcela = valor_total / parcelas
+                        
+                        print(f"Transação {transacao_id}: {descricao}")
+                        print(f"  Valor total: R$ {valor_total:.2f}, Parcelas: {parcelas}")
+                        print(f"  Valor parcela: R$ {valor_parcela:.2f}")
+                        print(f"  Data compra: {data_compra.strftime('%d/%m/%Y')}")
+                        
+                        # Verificar se esta parcela ainda estará ativa no mês da projeção
+                        for parcela_num in range(parcelas):
+                            mes_parcela = data_compra.month + parcela_num
+                            ano_parcela = data_compra.year
+                            
+                            # Ajustar mês/ano se passar de dezembro
+                            while mes_parcela > 12:
+                                mes_parcela -= 12
+                                ano_parcela += 1
+                            
+                            if mes_parcela == mes_projecao and ano_parcela == ano_projecao:
+                                despesas_parceladas_mes += valor_parcela
+                                print(f"  ✓ Parcela {parcela_num + 1} cai em {mes_projecao}/{ano_projecao}: +R$ {valor_parcela:.2f}")
+                            else:
+                                print(f"  ✗ Parcela {parcela_num + 1} cai em {mes_parcela}/{ano_parcela}")
+                                
+                    except Exception as e:
+                        print(f"Erro ao processar parcela: {e}")
+                        continue
+            
+            print(f"Total despesas parceladas mês {mes_projecao}: R$ {despesas_parceladas_mes:.2f}")
+            
+            # Calcular saldo final do mês
+            receitas_total = receitas_fixas
+            despesas_total = despesas_fixas + despesas_parceladas_mes
+            saldo_final = receitas_total - despesas_total
+            
+            print(f"Resumo {nome_mes}:")
+            print(f"  Receitas fixas: R$ {receitas_fixas:.2f}")
+            print(f"  Despesas fixas: R$ {despesas_fixas:.2f}")
+            print(f"  Despesas parceladas: R$ {despesas_parceladas_mes:.2f}")
+            print(f"  Saldo final: R$ {saldo_final:.2f}")
+            print("=" * 50)
+            
+            proximas_faturas.append({
+                'mes_ano': nome_mes,
+                'receitas_total': receitas_total,
+                'despesas_total': despesas_total,
+                'saldo_final': saldo_final
+            })
+    
+    return proximas_faturas
+# --------------------------
+# Função para calcular despesas da fatura atual - VERSÃO CORRIGIDA
+# --------------------------
+def calcular_despesas_fatura_atual():
+    """Calcula o total de despesas que estão na fatura atual (em aberto) - CORREÇÃO: dia do fechamento vai para próxima fatura"""
+    hoje = datetime.now()
+    despesas_fatura_atual = 0
+    
+    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+        c = conn.cursor()
+        
+        c.execute("SELECT id, dias_fechamento, data_vencimento FROM cartoes WHERE tipo_pagamento IN ('credito', 'multiplo')")
+        cartoes = c.fetchall()
+        
+        for cartao_id, dias_fechamento, data_vencimento in cartoes:
+            if dias_fechamento and data_vencimento:
+                try:
+                    # CORREÇÃO: Lógica correta - dia do fechamento vai para PRÓXIMA fatura
+                    
+                    # FATURA ATUAL: que vence no data_vencimento do PRÓXIMO mês
+                    if hoje.month == 12:
+                        mes_vencimento_fatura_atual = 1
+                        ano_vencimento_fatura_atual = hoje.year + 1
+                    else:
+                        mes_vencimento_fatura_atual = hoje.month + 1
+                        ano_vencimento_fatura_atual = hoje.year
+                    
+                    data_vencimento_fatura_atual = datetime(ano_vencimento_fatura_atual, mes_vencimento_fatura_atual, data_vencimento)
+                    data_fechamento_fatura_atual = data_vencimento_fatura_atual - timedelta(days=dias_fechamento)
+                    
+                    # FATURA ANTERIOR: para calcular o início do período
+                    if hoje.month == 1:
+                        mes_vencimento_fatura_anterior = 12
+                        ano_vencimento_fatura_anterior = hoje.year - 1
+                    else:
+                        mes_vencimento_fatura_anterior = hoje.month
+                        ano_vencimento_fatura_anterior = hoje.year
+                    
+                    data_vencimento_fatura_anterior = datetime(ano_vencimento_fatura_anterior, mes_vencimento_fatura_anterior, data_vencimento)
+                    data_fechamento_fatura_anterior = data_vencimento_fatura_anterior - timedelta(days=dias_fechamento)
+                    
+                    # PERÍODO CORRETO: 
+                    # INÍCIO: dia do fechamento da fatura anterior (INCLUSIVE) - vai para fatura atual
+                    # FIM: dia ANTERIOR ao fechamento da fatura atual - vai para fatura atual
+                    data_inicio_periodo = data_fechamento_fatura_anterior
+                    data_fim_periodo = data_fechamento_fatura_atual - timedelta(days=1)
+                    
+                    # DEBUG: Mostrar período calculado
+                    print(f"=== CÁLCULO PERÍODO FATURA ===")
+                    print(f"Cartão {cartao_id}:")
+                    print(f"  Hoje: {hoje.strftime('%d/%m/%Y')}")
+                    print(f"  Vencimento: dia {data_vencimento}")
+                    print(f"  Fechamento: {dias_fechamento} dias antes")
+                    print(f"  Fatura atual: {mes_vencimento_fatura_atual}/{ano_vencimento_fatura_atual} (vence {data_vencimento_fatura_atual.strftime('%d/%m/%Y')})")
+                    print(f"  Fechamento atual: {data_fechamento_fatura_atual.strftime('%d/%m/%Y')}")
+                    print(f"  Fechamento anterior: {data_fechamento_fatura_anterior.strftime('%d/%m/%Y')}")
+                    print(f"  Período fatura atual: {data_inicio_periodo.strftime('%d/%m/%Y')} a {data_fim_periodo.strftime('%d/%m/%Y')}")
+                    
+                    # Buscar despesas neste período
+                    c.execute("""
+                        SELECT SUM(valor) FROM transacoes 
+                        WHERE tipo = 'despesa'
+                        AND id_cartao = ?
+                        AND DATE(data_criacao) BETWEEN DATE(?) AND DATE(?)
+                    """, (cartao_id, data_inicio_periodo.strftime('%Y-%m-%d'), data_fim_periodo.strftime('%Y-%m-%d')))
+                    
+                    despesas_cartao = c.fetchone()[0] or 0
+                    despesas_fatura_atual += despesas_cartao
+                    
+                    print(f"  Despesas no período: R$ {despesas_cartao}")
+                    
+                    # DEBUG: Verificar despesas específicas
+                    c.execute("""
+                        SELECT descricao, valor, DATE(data_criacao) 
+                        FROM transacoes 
+                        WHERE tipo = 'despesa'
+                        AND id_cartao = ?
+                        AND DATE(data_criacao) BETWEEN DATE(?) AND DATE(?)
+                    """, (cartao_id, data_inicio_periodo.strftime('%Y-%m-%d'), data_fim_periodo.strftime('%Y-%m-%d')))
+                    
+                    despesas_detalhadas = c.fetchall()
+                    for desc, valor, data in despesas_detalhadas:
+                        print(f"    - {desc}: R$ {valor} em {data}")
+                    print("=" * 50)
+                    
+                except ValueError as e:
+                    print(f"Erro no cartão {cartao_id}: {e}")
+                    continue
+    
+    return despesas_fatura_atual
 
 # --------------------------
 # Rotas principais
@@ -105,47 +306,125 @@ def index():
         c.execute("SELECT SUM(saldo) FROM contas")
         saldo_total = c.fetchone()[0] or 0
 
-        # Total gasto no crédito (este mês)
+        # PROJEÇÃO DE RECEITAS FIXAS FUTURAS (que ainda não aconteceram este mês)
         c.execute("""
             SELECT SUM(valor) FROM transacoes 
-            WHERE tipo = 'despesa' 
-            AND tipo_compra = 'credito'
-            AND strftime('%Y-%m', data_criacao) = strftime('%Y-%m', 'now')
+            WHERE tipo = 'receita'
+            AND tipo_receita = 'fixa'
+            AND (strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now') OR data_criacao IS NULL)
         """)
-        gasto_credito = c.fetchone()[0] or 0
+        receitas_fixas_futuras = c.fetchone()[0] or 0
 
-        # Total de receitas do mês
+        # PROJEÇÃO DE DESPESAS FIXAS FUTURAS (considerando datas de fechamento/vencimento)
+        hoje = datetime.now()
+        
+        c.execute("SELECT id, dias_fechamento, data_vencimento FROM cartoes WHERE tipo_pagamento IN ('credito', 'multiplo')")
+        cartoes = c.fetchall()
+        
+        despesas_fixas_futuras = 0
+        
+        for cartao_id, dias_fechamento, data_vencimento in cartoes:
+            if dias_fechamento and data_vencimento:
+                try:
+                    # MESMA LÓGICA AUTO-SUSTENTÁVEL
+                    if hoje.month == 12:
+                        mes_vencimento_fatura_atual = 1
+                        ano_vencimento_fatura_atual = hoje.year + 1
+                    else:
+                        mes_vencimento_fatura_atual = hoje.month + 1
+                        ano_vencimento_fatura_atual = hoje.year
+                    
+                    data_vencimento_fatura_atual = datetime(ano_vencimento_fatura_atual, mes_vencimento_fatura_atual, data_vencimento)
+                    data_fechamento_fatura_atual = data_vencimento_fatura_atual - timedelta(days=dias_fechamento)
+                    
+                    if hoje.month == 1:
+                        mes_vencimento_fatura_anterior = 12
+                        ano_vencimento_fatura_anterior = hoje.year - 1
+                    else:
+                        mes_vencimento_fatura_anterior = hoje.month
+                        ano_vencimento_fatura_anterior = hoje.year
+                    
+                    data_vencimento_fatura_anterior = datetime(ano_vencimento_fatura_anterior, mes_vencimento_fatura_anterior, data_vencimento)
+                    data_fechamento_fatura_anterior = data_vencimento_fatura_anterior - timedelta(days=dias_fechamento)
+                    
+                    # Buscar despesas fixas que caem dentro do período da fatura atual
+                    c.execute("""
+                        SELECT SUM(valor) FROM transacoes 
+                        WHERE tipo = 'despesa'
+                        AND tipo_cobranca = 'fixa'
+                        AND (strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now') OR data_criacao IS NULL)
+                        AND dia_vencimento > ? AND dia_vencimento <= ?
+                    """, (data_fechamento_fatura_anterior.day, data_fechamento_fatura_atual.day))
+                    
+                    despesas_cartao = c.fetchone()[0] or 0
+                    despesas_fixas_futuras += despesas_cartao
+                    
+                    print(f"Despesas fixas futuras - Cartão {cartao_id}: R$ {despesas_cartao}")
+                    print(f"  Período: dia {data_fechamento_fatura_anterior.day + 1} a {data_fechamento_fatura_atual.day}")
+                    
+                except ValueError as e:
+                    print(f"Erro no cartão {cartao_id} (fixas): {e}")
+                    continue
+
+        # DESPESAS DA FATURA ATUAL (CORREÇÃO PRINCIPAL)
+        despesas_fatura_atual = calcular_despesas_fatura_atual()
+
+        # CÁLCULO CORRETO DO DISPONÍVEL MÊS:
+        disponivel_mes = saldo_total + receitas_fixas_futuras - despesas_fixas_futuras - despesas_fatura_atual
+
+        print(f"DEBUG CÁLCULO:")
+        print(f"  Saldo total: R$ {saldo_total}")
+        print(f"  Receitas fixas futuras: R$ {receitas_fixas_futuras}")
+        print(f"  Despesas fixas futuras: R$ {despesas_fixas_futuras}")
+        print(f"  Despesas fatura atual: R$ {despesas_fatura_atual}")
+        print(f"  Disponível mês: R$ {disponivel_mes}")
+
+        # Gastos no crédito da fatura atual (para o card de informação)
+        gasto_credito_fatura_atual = 0
+        
+        for cartao_id, dias_fechamento, data_vencimento in cartoes:
+            if dias_fechamento and data_vencimento:
+                try:
+                    if hoje.month == 12:
+                        mes_vencimento = 1
+                        ano_vencimento = hoje.year + 1
+                    else:
+                        mes_vencimento = hoje.month + 1
+                        ano_vencimento = hoje.year
+                    
+                    data_vencimento_fatura = datetime(ano_vencimento, mes_vencimento, data_vencimento)
+                    data_fechamento_fatura = data_vencimento_fatura - timedelta(days=dias_fechamento)
+                    
+                    if hoje.month == 1:
+                        mes_vencimento_anterior = 12
+                        ano_vencimento_anterior = hoje.year - 1
+                    else:
+                        mes_vencimento_anterior = hoje.month
+                        ano_vencimento_anterior = hoje.year
+                    
+                    data_vencimento_anterior = datetime(ano_vencimento_anterior, mes_vencimento_anterior, data_vencimento)
+                    data_fechamento_anterior = data_vencimento_anterior - timedelta(days=dias_fechamento)
+                    
+                    c.execute("""
+                        SELECT SUM(valor) FROM transacoes 
+                        WHERE tipo = 'despesa' 
+                        AND tipo_compra = 'credito'
+                        AND id_cartao = ?
+                        AND DATE(data_criacao) BETWEEN DATE(?) AND DATE(?)
+                    """, (cartao_id, data_fechamento_anterior.strftime('%Y-%m-%d'), data_fechamento_fatura.strftime('%Y-%m-%d')))
+                    
+                    gasto_cartao = c.fetchone()[0] or 0
+                    gasto_credito_fatura_atual += gasto_cartao
+                except ValueError:
+                    continue
+
+        # TOTAL DE RECEITAS DO MÊS (para outro card)
         c.execute("""
             SELECT SUM(valor) FROM transacoes 
             WHERE tipo = 'receita'
             AND strftime('%Y-%m', data_criacao) = strftime('%Y-%m', 'now')
         """)
         receitas_mes = c.fetchone()[0] or 0
-
-        # Total disponível no mês (receitas + saldo - gastos crédito)
-        disponivel_mes = receitas_mes + saldo_total - gasto_credito
-
-        # Próximos vencimentos (próximos 7 dias)
-        c.execute("""
-            SELECT descricao, valor, data_criacao 
-            FROM transacoes 
-            WHERE tipo = 'despesa'
-            AND tipo_cobranca = 'fixa'
-            AND DATE(data_criacao) BETWEEN DATE('now') AND DATE('now', '+7 days')
-            ORDER BY data_criacao ASC
-            LIMIT 5
-        """)
-        vencimentos_raw = c.fetchall()
-        proximos_vencimentos = []
-        for row in vencimentos_raw:
-            if row[2]:  # Verifica se a data não é None
-                try:
-                    data_formatada = datetime.strptime(row[2], '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y')
-                except:
-                    data_formatada = row[2]
-            else:
-                data_formatada = '-'
-            proximos_vencimentos.append({'descricao': row[0], 'valor': row[1], 'data': data_formatada})
 
         # Gastos por categoria (este mês)
         c.execute("""
@@ -162,7 +441,7 @@ def index():
         for row in gastos_cat_raw:
             gastos_por_categoria.append({'nome': row[0] or 'Sem categoria', 'total': row[1] or 0})
 
-        # Metas (exemplo - você pode personalizar)
+        # Metas
         meta_economia_atual = min(650, 1000)
         meta_economia_percentual = int((meta_economia_atual / 1000) * 100) if 1000 > 0 else 0
         
@@ -171,18 +450,20 @@ def index():
         
         meta_economia = {'meta': 1000, 'atual': meta_economia_atual, 'percentual': meta_economia_percentual}
         meta_gastos = {'meta': 2000, 'atual': meta_gastos_atual, 'percentual': meta_gastos_percentual}
+        
+        # PRÓXIMAS FATURAS (nova funcionalidade)
+        proximas_faturas = calcular_proximas_faturas()
 
     return render_template('index.html', 
                          transacoes=transacoes,
                          saldo_total=saldo_total,
-                         gasto_credito=gasto_credito,
+                         gasto_credito=gasto_credito_fatura_atual,
                          receitas_mes=receitas_mes,
                          disponivel_mes=disponivel_mes,
-                         proximos_vencimentos=proximos_vencimentos,
+                         proximas_faturas=proximas_faturas,
                          gastos_por_categoria=gastos_por_categoria,
                          meta_economia=meta_economia,
                          meta_gastos=meta_gastos)
-
 
 # --------------------------
 # API para dados do dashboard (atualização em tempo real)
@@ -196,14 +477,93 @@ def dashboard_data():
         c.execute("SELECT SUM(saldo) FROM contas")
         saldo_total = c.fetchone()[0] or 0
 
-        # Total gasto no crédito (este mês)
+        # PROJEÇÃO DE RECEITAS FIXAS FUTURAS
         c.execute("""
             SELECT SUM(valor) FROM transacoes 
-            WHERE tipo = 'despesa' 
-            AND tipo_compra = 'credito'
-            AND strftime('%Y-%m', data_criacao) = strftime('%Y-%m', 'now')
+            WHERE tipo = 'receita'
+            AND tipo_receita = 'fixa'
+            AND (strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now') OR data_criacao IS NULL)
         """)
-        gasto_credito = c.fetchone()[0] or 0
+        receitas_fixas_futuras = c.fetchone()[0] or 0
+
+        # PROJEÇÃO DE DESPESAS FIXAS FUTURAS
+        hoje = datetime.now()
+        dia_hoje = hoje.day
+        mes_hoje = hoje.month
+        ano_hoje = hoje.year
+
+        c.execute("""
+            SELECT id, dias_fechamento, data_vencimento 
+            FROM cartoes 
+            WHERE tipo_pagamento IN ('credito', 'multiplo')
+        """)
+        cartoes = c.fetchall()
+        
+        despesas_fixas_futuras = 0
+        
+        for cartao_id, dias_fechamento, data_vencimento in cartoes:
+            if dias_fechamento and data_vencimento:
+                try:
+                    mes_vencimento = mes_hoje + 1 if mes_hoje < 12 else 1
+                    ano_vencimento = ano_hoje if mes_hoje < 12 else ano_hoje + 1
+                    
+                    data_vencimento_fatura = datetime(ano_vencimento, mes_vencimento, data_vencimento)
+                    data_fechamento_fatura = data_vencimento_fatura - timedelta(days=dias_fechamento)
+                    
+                    mes_vencimento_anterior = mes_hoje
+                    ano_vencimento_anterior = ano_hoje
+                    data_vencimento_anterior = datetime(ano_vencimento_anterior, mes_vencimento_anterior, data_vencimento)
+                    data_fechamento_anterior = data_vencimento_anterior - timedelta(days=dias_fechamento)
+                    
+                    c.execute("""
+                        SELECT SUM(valor) FROM transacoes 
+                        WHERE tipo = 'despesa'
+                        AND tipo_cobranca = 'fixa'
+                        AND (strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now') OR data_criacao IS NULL)
+                        AND dia_vencimento > ? AND dia_vencimento <= ?
+                    """, (data_fechamento_anterior.day, data_fechamento_fatura.day))
+                    
+                    despesas_cartao = c.fetchone()[0] or 0
+                    despesas_fixas_futuras += despesas_cartao
+                    
+                except ValueError:
+                    continue
+
+        # DESPESAS DA FATURA ATUAL (CORREÇÃO PRINCIPAL)
+        despesas_fatura_atual = calcular_despesas_fatura_atual()
+
+        # CÁLCULO CORRETO DO DISPONÍVEL MÊS
+        disponivel_mes = saldo_total + receitas_fixas_futuras - despesas_fixas_futuras - despesas_fatura_atual
+
+        # Gastos no crédito da fatura atual
+        gasto_credito_fatura_atual = 0
+        
+        for cartao_id, dias_fechamento, data_vencimento in cartoes:
+            if dias_fechamento and data_vencimento:
+                try:
+                    mes_vencimento = mes_hoje + 1 if mes_hoje < 12 else 1
+                    ano_vencimento = ano_hoje if mes_hoje < 12 else ano_hoje + 1
+                    
+                    data_vencimento_fatura = datetime(ano_vencimento, mes_vencimento, data_vencimento)
+                    data_fechamento_fatura = data_vencimento_fatura - timedelta(days=dias_fechamento)
+                    
+                    mes_vencimento_anterior = mes_hoje
+                    ano_vencimento_anterior = ano_hoje
+                    data_vencimento_anterior = datetime(ano_vencimento_anterior, mes_vencimento_anterior, data_vencimento)
+                    data_fechamento_anterior = data_vencimento_anterior - timedelta(days=dias_fechamento)
+                    
+                    c.execute("""
+                        SELECT SUM(valor) FROM transacoes 
+                        WHERE tipo = 'despesa' 
+                        AND tipo_compra = 'credito'
+                        AND id_cartao = ?
+                        AND DATE(data_criacao) BETWEEN DATE(?) AND DATE(?)
+                    """, (cartao_id, data_fechamento_anterior.strftime('%Y-%m-%d'), data_fechamento_fatura.strftime('%Y-%m-%d')))
+                    
+                    gasto_cartao = c.fetchone()[0] or 0
+                    gasto_credito_fatura_atual += gasto_cartao
+                except ValueError:
+                    continue
 
         # Total de receitas do mês
         c.execute("""
@@ -213,16 +573,12 @@ def dashboard_data():
         """)
         receitas_mes = c.fetchone()[0] or 0
 
-        # Total disponível no mês (receitas + saldo - gastos crédito)
-        disponivel_mes = receitas_mes + saldo_total - gasto_credito
-
     return jsonify({
         'saldo_total': saldo_total,
-        'gasto_credito': gasto_credito,
+        'gasto_credito': gasto_credito_fatura_atual,
         'receitas_mes': receitas_mes,
         'disponivel_mes': disponivel_mes
     })
-
 
 # --------------------------
 # Lançamentos - DESPESAS - CORRIGIDA
@@ -249,7 +605,6 @@ def lancamentos():
 
     return render_template('lancamentos.html', lancamentos=lancamentos_formatados)
 
-
 # --------------------------
 # Lançamentos - RECEITAS - COM TODOS OS CAMPOS
 # --------------------------
@@ -270,7 +625,6 @@ def lancamentosReceita():
         receitas = c.fetchall()
     return render_template('lancamentosReceita.html', receitas=receitas)
 
-
 # --------------------------
 # Lançamentos - CONTAS
 # --------------------------
@@ -281,7 +635,6 @@ def lancamentosConta():
         c.execute("SELECT id, nome, saldo FROM contas ORDER BY nome")
         contas = c.fetchall()
     return render_template('lancamentosConta.html', contas=contas)
-
 
 # --------------------------
 # API - CONTAS
@@ -334,7 +687,6 @@ def remover_conta():
         
     return {"success": True}
 
-
 # --------------------------
 # Lançamentos - CARTÕES
 # --------------------------
@@ -355,7 +707,6 @@ def lancamentosCartao():
         contas = c.fetchall()
 
     return render_template('lancamentosCartao.html', cartoes=cartoes, contas=contas)
-
 
 # --------------------------
 # API - CARTÕES
@@ -414,88 +765,152 @@ def listar_cartoes_completos():
     return {"cartoes": [{"id": id, "nome": nome, "tipo_pagamento": tipo, "conta_nome": conta_nome} 
                        for id, nome, tipo, conta_nome in cartoes]}
 
-
 # --------------------------
 # API - Lançamentos (Adicionar / Remover) - COMPLETA E CORRIGIDA
 # --------------------------
 @app.route('/api/adicionar_lancamento', methods=['POST'])
 def api_adicionar_lancamento():
-    data = request.get_json()
-    descricao = data.get("descricao")
-    tipo = data.get("tipo")  # "despesa" ou "receita"
-    valor = float(data.get("valor"))
-    categoria = data.get("categoria")
-    id_cartao = data.get("id_cartao")
-    id_conta = data.get("id_conta")
-    tipo_receita = data.get("tipo_receita", "avulsa")  # "avulsa" ou "fixa"
-    tipo_cobranca = data.get("tipo_cobranca", "avulsa")  # "avulsa" ou "fixa"
-    dia_vencimento = data.get("dia_vencimento")  # 1-31
-    tipo_compra = data.get("tipo_compra", "credito")  # "credito" ou "debito"
-    pagamento = data.get("pagamento", "avista")  # "avista" ou "parcelado"
-    parcelas = data.get("parcelas")  # número de parcelas (pode ser None)
-
-    if not descricao or not tipo or valor is None:
-        return {"success": False, "error": "Campos obrigatórios ausentes"}
-
-    # Validações específicas
-    if tipo == "despesa" and not id_cartao:
-        return {"success": False, "error": "Para despesas, selecione um cartão"}
-    if tipo == "receita" and not id_conta:
-        return {"success": False, "error": "Para receitas, selecione uma conta"}
-    if tipo == "receita" and tipo_receita == "fixa" and not dia_vencimento:
-        return {"success": False, "error": "Para receita fixa, informe o dia do mês"}
-
-    # Validação para tipo_compra em despesas
-    if tipo == "despesa" and tipo_compra not in ['credito', 'debito']:
-        return {"success": False, "error": "Tipo de compra inválido"}
-
-    # Validação para pagamento parcelado
-    if pagamento == "parcelado" and (not parcelas or parcelas < 2):
-        return {"success": False, "error": "Para pagamento parcelado, informe o número de parcelas (mínimo 2)"}
-
-    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
-        c = conn.cursor()
+    try:
+        data = request.get_json()
+        print(f"Dados recebidos: {data}")  # DEBUG
         
-        # Verificar se o cartão existe e seu tipo
-        if tipo == "despesa" and id_cartao:
-            c.execute("SELECT tipo_pagamento FROM cartoes WHERE id = ?", (id_cartao,))
-            cartao = c.fetchone()
-            if not cartao:
-                return {"success": False, "error": "Cartão não encontrado"}
+        if not data:
+            return {"success": False, "error": "Nenhum dado recebido"}
             
-            # Validar compatibilidade entre tipo do cartão e tipo da compra
-            tipo_cartao = cartao[0]
-            if tipo_cartao != 'multiplo' and tipo_compra != tipo_cartao:
-                return {"success": False, "error": f"Este cartão só aceita pagamentos no {tipo_cartao}"}
+        descricao = data.get("descricao")
+        tipo = data.get("tipo")  # "despesa" ou "receita"
+        valor_str = data.get("valor")
+        categoria = data.get("categoria")
+        id_cartao_str = data.get("id_cartao")  # Pode vir como string
+        id_conta_str = data.get("id_conta")    # Pode vir como string
+        tipo_receita = data.get("tipo_receita", "avulsa")
+        tipo_cobranca = data.get("tipo_cobranca", "avulsa")
+        dia_vencimento_str = data.get("dia_vencimento")
+        tipo_compra = data.get("tipo_compra", "credito")
+        pagamento = data.get("pagamento", "avista")
+        parcelas_str = data.get("parcelas")
+        
+        # NOVO: Receber a data do formulário
+        data_criacao = data.get("data")
+
+        # Validações básicas
+        if not descricao:
+            return {"success": False, "error": "Descrição é obrigatória"}
+        if not tipo:
+            return {"success": False, "error": "Tipo é obrigatório"}
+        if not valor_str:
+            return {"success": False, "error": "Valor é obrigatório"}
             
-            # Validar se cartão débito não está tentando parcelar
-            if tipo_cartao == 'debito' and pagamento == 'parcelado':
-                return {"success": False, "error": "Cartão de débito não permite parcelamento"}
-        
-        # Inserir a transação COM OS NOVOS CAMPOS
-        c.execute("""
-            INSERT INTO transacoes (tipo, descricao, valor, categoria, id_cartao, id_conta, 
-                                   tipo_receita, tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (tipo, descricao, valor, categoria, id_cartao, id_conta, tipo_receita, 
-              tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas))
-        
-        # ATUALIZAR SALDO DA CONTA se for RECEITA ou DESPESA NO DÉBITO
-        if tipo == "receita" and id_conta:
-            c.execute("UPDATE contas SET saldo = saldo + ? WHERE id = ?", (valor, id_conta))
-        elif tipo == "despesa" and tipo_compra == "debito" and id_cartao:
-            # Para débito, desconta direto da conta vinculada ao cartão
-            c.execute("""
-                UPDATE contas 
-                SET saldo = saldo - ? 
-                WHERE id = (SELECT conta FROM cartoes WHERE id = ?)
-            """, (valor, id_cartao))
-        
-        conn.commit()
-        lancamento_id = c.lastrowid
+        try:
+            valor = float(valor_str)
+        except (ValueError, TypeError):
+            return {"success": False, "error": "Valor inválido"}
 
-    return {"success": True, "id": lancamento_id}
+        # CONVERSÃO SEGURA DOS IDs
+        id_cartao = None
+        if id_cartao_str and id_cartao_str != "":
+            try:
+                id_cartao = int(id_cartao_str)
+            except (ValueError, TypeError):
+                return {"success": False, "error": "ID do cartão inválido"}
 
+        id_conta = None
+        if id_conta_str and id_conta_str != "":
+            try:
+                id_conta = int(id_conta_str)
+            except (ValueError, TypeError):
+                return {"success": False, "error": "ID da conta inválido"}
+
+        # CONVERSÃO SEGURA DOS OUTROS CAMPOS NUMÉRICOS
+        dia_vencimento = None
+        if dia_vencimento_str and dia_vencimento_str != "":
+            try:
+                dia_vencimento = int(dia_vencimento_str)
+            except (ValueError, TypeError):
+                return {"success": False, "error": "Dia de vencimento inválido"}
+
+        parcelas = None
+        if parcelas_str and parcelas_str != "":
+            try:
+                parcelas = int(parcelas_str)
+            except (ValueError, TypeError):
+                return {"success": False, "error": "Número de parcelas inválido"}
+
+        # Validações específicas
+        if tipo == "despesa" and not id_cartao:
+            return {"success": False, "error": "Para despesas, selecione um cartão"}
+        if tipo == "receita" and not id_conta:
+            return {"success": False, "error": "Para receitas, selecione uma conta"}
+        if tipo == "receita" and tipo_receita == "fixa" and not dia_vencimento:
+            return {"success": False, "error": "Para receita fixa, informe o dia do mês"}
+
+        # Validação para tipo_compra em despesas
+        if tipo == "despesa" and tipo_compra not in ['credito', 'debito']:
+            return {"success": False, "error": "Tipo de compra inválido"}
+
+        # Validação para pagamento parcelado
+        if pagamento == "parcelado" and (not parcelas or parcelas < 2):
+            return {"success": False, "error": "Para pagamento parcelado, informe o número de parcelas (mínimo 2)"}
+
+        with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+            c = conn.cursor()
+            
+            # Verificar se o cartão existe e seu tipo (apenas para despesas)
+            if tipo == "despesa" and id_cartao:
+                c.execute("SELECT tipo_pagamento FROM cartoes WHERE id = ?", (id_cartao,))
+                cartao = c.fetchone()
+                if not cartao:
+                    return {"success": False, "error": "Cartão não encontrado"}
+                
+                # Validar compatibilidade entre tipo do cartão e tipo da compra
+                tipo_cartao = cartao[0]
+                if tipo_cartao != 'multiplo' and tipo_compra != tipo_cartao:
+                    return {"success": False, "error": f"Este cartão só aceita pagamentos no {tipo_cartao}"}
+                
+                # Validar se cartão débito não está tentando parcelar
+                if tipo_cartao == 'debito' and pagamento == 'parcelado':
+                    return {"success": False, "error": "Cartão de débito não permite parcelamento"}
+            
+            # CORREÇÃO: Inserir a transação COM A DATA FORNECIDA
+            if data_criacao:
+                # Se foi fornecida uma data, usar ela
+                c.execute("""
+                    INSERT INTO transacoes (tipo, descricao, valor, categoria, id_cartao, id_conta, 
+                                           tipo_receita, tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas, data_criacao)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (tipo, descricao, valor, categoria, id_cartao, id_conta, tipo_receita, 
+                      tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas, data_criacao))
+            else:
+                # Se não foi fornecida data, usar o DEFAULT (data atual)
+                c.execute("""
+                    INSERT INTO transacoes (tipo, descricao, valor, categoria, id_cartao, id_conta, 
+                                           tipo_receita, tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (tipo, descricao, valor, categoria, id_cartao, id_conta, tipo_receita, 
+                      tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas))
+            
+            # ATUALIZAR SALDO DA CONTA se for RECEITA ou DESPESA NO DÉBITO
+            if tipo == "receita" and id_conta:
+                c.execute("UPDATE contas SET saldo = saldo + ? WHERE id = ?", (valor, id_conta))
+            elif tipo == "despesa" and tipo_compra == "debito" and id_cartao:
+                # Para débito, desconta direto da conta vinculada ao cartão
+                c.execute("""
+                    UPDATE contas 
+                    SET saldo = saldo - ? 
+                    WHERE id = (SELECT conta FROM cartoes WHERE id = ?)
+                """, (valor, id_cartao))
+            
+            conn.commit()
+            lancamento_id = c.lastrowid
+
+        return {"success": True, "id": lancamento_id}
+        
+    except Exception as e:
+        print(f"Erro ao adicionar lançamento: {e}")
+        import traceback
+        traceback.print_exc()  # Mostra o traceback completo para debug
+        return {"success": False, "error": f"Erro interno: {str(e)}"}
+    
 @app.route("/api/remover_lancamento", methods=["POST"])
 def remover_lancamento():
     data = request.get_json()
@@ -531,7 +946,6 @@ def remover_lancamento():
         conn.commit()
         
     return {"success": True}
-
 
 # --------------------------
 # Categorias - COMPLETA
@@ -594,7 +1008,6 @@ def remover_categoria():
         conn.commit()
     return {"success": True}
 
-
 # --------------------------
 # NOVA API - Buscar despesas completas para a tela
 # --------------------------
@@ -619,7 +1032,6 @@ def despesas_completas():
         despesas_formatadas.append(list(despesa))
     
     return jsonify({"despesas": despesas_formatadas})
-
 
 # --------------------------
 # FUNÇÃO PARA GERAR RECEITAS FIXAS (Para implementar depois)
@@ -658,7 +1070,6 @@ def gerar_receitas_fixas():
             c.execute("UPDATE contas SET saldo = saldo + ? WHERE id = ?", (valor, id_conta))
         
         conn.commit()
-
 
 # --------------------------
 # FUNÇÃO PARA GERAR DESPESAS FIXAS
@@ -700,7 +1111,6 @@ def gerar_despesas_fixas():
                 """, (valor, id_cartao))
         
         conn.commit()
-
 
 # --------------------------
 # ROTA PARA TESTE - Gerar dados de exemplo
@@ -747,7 +1157,6 @@ def gerar_dados_exemplo():
     
     return {"success": True, "message": "Dados de exemplo gerados com sucesso"}
 
-
 # --------------------------
 # Outras páginas
 # --------------------------
@@ -758,7 +1167,6 @@ def projecoes():
 @app.route('/visaoGeral')
 def visaoGeral():
     return render_template('visaoGeral.html')
-
 
 # --------------------------
 # Inicialização

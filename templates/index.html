@@ -31,6 +31,17 @@
         .quick-action-btn:hover {
             transform: scale(1.05);
         }
+        .fatura-item {
+            border-left: 4px solid #007bff;
+            padding-left: 10px;
+            margin-bottom: 8px;
+        }
+        .fatura-item.negative {
+            border-left-color: #dc3545;
+        }
+        .fatura-item.positive {
+            border-left-color: #28a745;
+        }
     </style>
 </head>
 
@@ -159,29 +170,39 @@
 
         <!-- Segunda Linha de Painéis -->
         <div class="row mb-4">
-            <!-- Próximos Vencimentos -->
+            <!-- Próximas Faturas -->
             <div class="col-md-4 mb-3">
-                <div class="card card-dashboard border-danger">
+                <div class="card card-dashboard border-primary">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="card-title text-muted mb-0">Próximos Vencimentos</h6>
-                            <i class="bi bi-calendar-x text-danger"></i>
+                            <h6 class="card-title text-muted mb-0">Próximas Faturas</h6>
+                            <i class="bi bi-calendar-check text-primary"></i>
                         </div>
-                        <div id="proximosVencimentos">
-                            {% if proximos_vencimentos %}
-                                {% for vencimento in proximos_vencimentos %}
-                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                                    <div>
-                                        <small class="fw-bold">{{ vencimento.descricao }}</small>
-                                        <br>
-                                        <small class="text-muted">{{ vencimento.data }}</small>
+                        <div id="proximasFaturas">
+                            {% if proximas_faturas %}
+                                {% for fatura in proximas_faturas %}
+                                <div class="fatura-item {% if fatura.saldo_final >= 0 %}positive{% else %}negative{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small class="fw-bold">{{ fatura.mes_ano }}</small>
+                                            <br>
+                                            <small class="text-muted">
+                                                Receitas: R$ {{ "%.2f"|format(fatura.receitas_total) }}<br>
+                                                Despesas: R$ {{ "%.2f"|format(fatura.despesas_total) }}
+                                            </small>
+                                        </div>
+                                        <span class="badge {% if fatura.saldo_final >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                            R$ {{ "%.2f"|format(fatura.saldo_final) }}
+                                        </span>
                                     </div>
-                                    <span class="badge bg-danger">R$ {{ "%.2f"|format(vencimento.valor) }}</span>
                                 </div>
                                 {% endfor %}
                             {% else %}
-                                <p class="text-muted text-center mb-0">Nenhum vencimento próximo</p>
+                                <p class="text-muted text-center mb-0">Carregando projeções...</p>
                             {% endif %}
+                        </div>
+                        <div class="mt-2 text-center">
+                            <small class="text-muted">Projeção dos próximos 3 meses</small>
                         </div>
                     </div>
                 </div>
@@ -253,7 +274,7 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Data</th>
+                                        <th>Cartão</th>
                                         <th>Descrição</th>
                                         <th>Categoria</th>
                                         <th>Tipo</th>
@@ -293,7 +314,25 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Atualização automática dos valores (opcional)
+        // Função para atualizar as próximas faturas
+        function atualizarProximasFaturas() {
+            fetch('/')
+                .then(response => response.text())
+                .then(html => {
+                    // Criar um elemento temporário para parsear o HTML
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    // Extrair o conteúdo das próximas faturas
+                    const novasFaturas = tempDiv.querySelector('#proximasFaturas');
+                    if (novasFaturas) {
+                        document.getElementById('proximasFaturas').innerHTML = novasFaturas.innerHTML;
+                    }
+                })
+                .catch(error => console.error('Erro ao atualizar faturas:', error));
+        }
+
+        // Atualização automática dos valores
         function atualizarDashboard() {
             fetch('/api/dashboard_data')
                 .then(response => response.json())
@@ -302,12 +341,28 @@
                     document.getElementById('gastoCredito').textContent = 'R$ ' + data.gasto_credito.toFixed(2);
                     document.getElementById('disponivelMes').textContent = 'R$ ' + data.disponivel_mes.toFixed(2);
                     document.getElementById('receitasMes').textContent = 'R$ ' + data.receitas_mes.toFixed(2);
+                    
+                    // Atualizar também as faturas
+                    atualizarProximasFaturas();
                 })
                 .catch(error => console.error('Erro ao atualizar dashboard:', error));
         }
 
-        // Atualizar a cada 30 segundos (opcional)
-        // setInterval(atualizarDashboard, 30000);
+        // Atualizar a cada 30 segundos
+        setInterval(atualizarDashboard, 30000);
+
+        // Atualizar quando a página ganhar foco (quando voltar de outra aba)
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                atualizarDashboard();
+            }
+        });
+
+        // Atualizar quando a página for carregada
+        document.addEventListener('DOMContentLoaded', function() {
+            // Pequeno delay para garantir que tudo foi carregado
+            setTimeout(atualizarDashboard, 1000);
+        });
     </script>
 
 </body>

@@ -199,17 +199,48 @@
                     });
             }
 
+            // Habilita ou desabilita o campo de parcelas baseado no tipo de pagamento
+            tipoPagamento.addEventListener("change", () => {
+                const cartaoSelecionado = cartoesDisponiveis.find(c => c.id == selectCartao.value);
+
+                if (tipoPagamento.value === "parcelado") {
+                    // Pagamento parcelado: só permite crédito
+                    parcelasInput.disabled = false;
+                    parcelasInput.placeholder = "Nº parcelas";
+                    
+                    // Desabilita débito e força crédito
+                    selectTipoCompra.disabled = true;
+                    selectTipoCompra.value = 'credito';
+                    selectTipoCompra.style.backgroundColor = '#e9ecef';
+                } else {
+                    // Pagamento à vista: permite escolher (se cartão for múltiplo)
+                    parcelasInput.disabled = true;
+                    parcelasInput.value = "";
+                    parcelasInput.placeholder = "-";
+                    
+                    // Habilita tipo de compra apenas se cartão for múltiplo
+                    if (cartaoSelecionado && cartaoSelecionado.tipo_pagamento === 'multiplo') {
+                        selectTipoCompra.disabled = false;
+                        selectTipoCompra.style.backgroundColor = '';
+                    } else {
+                        selectTipoCompra.disabled = true;
+                        selectTipoCompra.style.backgroundColor = '#e9ecef';
+                    }
+                }
+            });
+
             // Controlar campos baseado no cartão selecionado
             selectCartao.addEventListener("change", function () {
                 const cartaoSelecionado = cartoesDisponiveis.find(c => c.id == this.value);
 
                 if (cartaoSelecionado) {
                     if (cartaoSelecionado.tipo_pagamento === 'multiplo') {
-                        // Cartão múltiplo: habilita tipo de compra
-                        selectTipoCompra.disabled = false;
-                        selectTipoCompra.required = true;
-                        selectTipoCompra.style.backgroundColor = '';
-
+                        // Cartão múltiplo: habilita tipo de compra (se não for parcelado)
+                        if (tipoPagamento.value !== "parcelado") {
+                            selectTipoCompra.disabled = false;
+                            selectTipoCompra.required = true;
+                            selectTipoCompra.style.backgroundColor = '';
+                        }
                         // Habilita seleção de pagamento
                         tipoPagamento.disabled = false;
                         tipoPagamento.style.backgroundColor = '';
@@ -244,22 +275,6 @@
                     tipoPagamento.disabled = false;
                     tipoPagamento.style.backgroundColor = '';
                     tipoPagamento.value = 'avista';
-                    parcelasInput.disabled = true;
-                    parcelasInput.value = "";
-                    parcelasInput.placeholder = "-";
-                }
-            });
-
-            // Habilita ou desabilita o campo de parcelas baseado no tipo de pagamento
-            tipoPagamento.addEventListener("change", () => {
-                const cartaoSelecionado = cartoesDisponiveis.find(c => c.id == selectCartao.value);
-
-                // Só permite parcelar se for crédito e pagamento parcelado
-                if (tipoPagamento.value === "parcelado" &&
-                    (!cartaoSelecionado || cartaoSelecionado.tipo_pagamento !== 'debito')) {
-                    parcelasInput.disabled = false;
-                    parcelasInput.placeholder = "Nº parcelas";
-                } else {
                     parcelasInput.disabled = true;
                     parcelasInput.value = "";
                     parcelasInput.placeholder = "-";
@@ -406,17 +421,19 @@
 
                 // Preparar dados para envio
                 const dadosDespesa = {
-                    descricao,
+                    descricao: descricao,
                     tipo: "despesa",
-                    valor,
-                    categoria,
-                    data,
+                    valor: valor,
+                    categoria: categoria,
+                    data: data,
                     tipo_cobranca: tipoCobranca,
-                    pagamento,
-                    parcelas,
+                    pagamento: pagamento,
+                    parcelas: parcelas,
                     id_cartao: cartaoId,
                     tipo_compra: tipoCompra
                 };
+
+                console.log("Dados enviados:", dadosDespesa); // Para debug
 
                 fetch("/api/adicionar_lancamento", {
                     method: "POST",
@@ -426,9 +443,8 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            // Usar a data atual para exibição imediata
-                            const dataAtual = new Date().toISOString().split('T')[0];
-                            adicionarDespesa(data.id, descricao, categoria, cartaoSelecionado.nome, dataAtual,
+                            // Usar a data do formulário
+                            adicionarDespesa(data.id, descricao, categoria, cartaoSelecionado.nome, dadosDespesa.data,
                                 tipoCobranca, pagamento, parcelas, tipoCompra, valor);
                             formDespesas.reset();
 
@@ -440,6 +456,9 @@
                             tipoPagamento.disabled = false;
                             tipoPagamento.style.backgroundColor = '';
                             selectTipoCobranca.value = 'avulsa';
+                            
+                            // Reset da data para hoje
+                            document.getElementById("dataCompra").value = new Date().toISOString().split('T')[0];
                         } else {
                             alert("Erro ao adicionar despesa: " + (data.error || "Erro desconhecido"));
                         }
@@ -454,32 +473,34 @@
             carregarCategorias();
             carregarCartoes();
 
+            // Definir data atual como padrão no campo de data
+            document.getElementById("dataCompra").value = new Date().toISOString().split('T')[0];
+
             // Carregar despesas existentes
-            const lancamentosExistentes = {{ lancamentos | tojson | default ('[]') | safe
-        }};
-        console.log("Lançamentos existentes:", lancamentosExistentes);
+            const lancamentosExistentes = {{ lancamentos | tojson | default ('[]') | safe }};
+            console.log("Lançamentos existentes:", lancamentosExistentes);
 
-        lancamentosExistentes.forEach(l => {
-            // Estrutura: [id, descricao, tipo, valor, categoria, cartao_nome, data, pagamento, parcelas, tipo_compra, tipo_cobranca]
-            if (Array.isArray(l)) {
-                const id = l[0];
-                const descricao = l[1];
-                const tipo = l[2];
-                const valor = l[3];
-                const categoria = l[4] || "";
-                const cartao_nome = l[5] || "";
-                const data = l[6] || new Date().toISOString().split('T')[0];
-                const pagamento = l[7] || "avista";
-                const parcelas = l[8] || "-";
-                const tipo_compra = l[9] || "credito";
-                const tipo_cobranca = l[10] || "avulsa"; // Novo campo
+            lancamentosExistentes.forEach(l => {
+                // Estrutura: [id, descricao, tipo, valor, categoria, cartao_nome, data, pagamento, parcelas, tipo_compra, tipo_cobranca]
+                if (Array.isArray(l)) {
+                    const id = l[0];
+                    const descricao = l[1];
+                    const tipo = l[2];
+                    const valor = l[3];
+                    const categoria = l[4] || "";
+                    const cartao_nome = l[5] || "";
+                    const data = l[6] || new Date().toISOString().split('T')[0];
+                    const pagamento = l[7] || "avista";
+                    const parcelas = l[8] || "-";
+                    const tipo_compra = l[9] || "credito";
+                    const tipo_cobranca = l[10] || "avulsa";
 
-                if (tipo === "despesa") {
-                    adicionarDespesa(id, descricao, categoria, cartao_nome, data,
-                        tipo_cobranca, pagamento, parcelas, tipo_compra, valor);
+                    if (tipo === "despesa") {
+                        adicionarDespesa(id, descricao, categoria, cartao_nome, data,
+                            tipo_cobranca, pagamento, parcelas, tipo_compra, valor);
+                    }
                 }
-            }
-        });
+            });
         });
     </script>
 
