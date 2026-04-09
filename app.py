@@ -1,1189 +1,797 @@
-from flask import Flask, render_template, request, redirect, jsonify
+from flask import Flask, render_template, request, jsonify
 import sqlite3
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from dateutil.relativedelta import relativedelta  # pip install python-dateutil
 
 app = Flask(__name__)
+DB = 'financas.db'
 
-# --------------------------
-# Inicialização do banco
-# --------------------------
+# ==============================================================
+# BANCO DE DADOS
+# ==============================================================
+
+def get_db():
+    """Retorna uma conexão com row_factory para acesso por nome."""
+    conn = sqlite3.connect(DB, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def init_db():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+    with get_db() as conn:
         c = conn.cursor()
 
-        # Tabela de transações (despesas e receitas)
         c.execute('''CREATE TABLE IF NOT EXISTS transacoes (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        tipo TEXT CHECK(tipo IN ('despesa','receita')),
-                        descricao TEXT,
-                        valor REAL,
-                        categoria TEXT,
-                        id_cartao INTEGER,
-                        id_conta INTEGER,
-                        tipo_receita TEXT CHECK(tipo_receita IN ('avulsa', 'fixa')) DEFAULT 'avulsa',
-                        tipo_cobranca TEXT CHECK(tipo_cobranca IN ('avulsa', 'fixa')) DEFAULT 'avulsa',
-                        dia_vencimento INTEGER,
-                        tipo_compra TEXT CHECK(tipo_compra IN ('credito', 'debito')) DEFAULT 'credito',
-                        pagamento TEXT CHECK(pagamento IN ('avista', 'parcelado')) DEFAULT 'avista',
-                        parcelas INTEGER DEFAULT NULL,
-                        data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (id_cartao) REFERENCES cartoes(id),
-                        FOREIGN KEY (id_conta) REFERENCES contas(id)
-                    )''')
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            tipo             TEXT    NOT NULL CHECK(tipo IN ('despesa','receita')),
+            descricao        TEXT    NOT NULL,
+            valor            REAL    NOT NULL,
+            categoria        TEXT,
+            id_cartao        INTEGER REFERENCES cartoes(id),
+            id_conta         INTEGER REFERENCES contas(id),
+            tipo_receita     TEXT    CHECK(tipo_receita   IN ('avulsa','fixa'))    DEFAULT 'avulsa',
+            tipo_cobranca    TEXT    CHECK(tipo_cobranca  IN ('avulsa','fixa'))    DEFAULT 'avulsa',
+            dia_vencimento   INTEGER,
+            tipo_compra      TEXT    CHECK(tipo_compra    IN ('credito','debito')) DEFAULT 'credito',
+            pagamento        TEXT    CHECK(pagamento      IN ('avista','parcelado')) DEFAULT 'avista',
+            parcelas         INTEGER DEFAULT NULL,
+            data_lancamento  DATE    NOT NULL DEFAULT (DATE('now'))
+        )''')
 
-        # Tabela de categorias
         c.execute('''CREATE TABLE IF NOT EXISTS categorias (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nome TEXT UNIQUE NOT NULL,
-                        tipo TEXT CHECK(tipo IN ('despesa', 'receita')) DEFAULT 'despesa'
-                    )''')
+            id   INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT    UNIQUE NOT NULL,
+            tipo TEXT    CHECK(tipo IN ('despesa','receita')) DEFAULT 'despesa'
+        )''')
 
-        # Tabela de contas
         c.execute('''CREATE TABLE IF NOT EXISTS contas (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nome TEXT UNIQUE NOT NULL,
-                        saldo REAL DEFAULT 0
-                    )''')
+            id    INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome  TEXT  UNIQUE NOT NULL,
+            saldo REAL  DEFAULT 0
+        )''')
 
-        # Tabela de cartões
+        # dias_fechamento = quantos dias ANTES do vencimento a fatura fecha
+        # data_vencimento = dia do mês em que a fatura vence
         c.execute('''CREATE TABLE IF NOT EXISTS cartoes (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nome TEXT NOT NULL UNIQUE,
-                        conta INTEGER NOT NULL,
-                        tipo_pagamento TEXT CHECK(tipo_pagamento IN ('credito', 'debito', 'multiplo')),
-                        data_vencimento INTEGER,
-                        dias_fechamento INTEGER,
-                        limite REAL DEFAULT 0,
-                        FOREIGN KEY (conta) REFERENCES contas(id)
-                    )''')
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome             TEXT  UNIQUE NOT NULL,
+            conta            INTEGER NOT NULL REFERENCES contas(id),
+            tipo_pagamento   TEXT  CHECK(tipo_pagamento IN ('credito','debito','multiplo')),
+            data_vencimento  INTEGER,   -- dia do mês (1-31)
+            dias_fechamento  INTEGER,   -- dias antes do vencimento que a fatura fecha
+            limite           REAL  DEFAULT 0
+        )''')
 
-        # Inserir algumas categorias padrão
+        # Categorias padrão
         categorias_padrao = [
-            ('Alimentação', 'despesa'),
-            ('Transporte', 'despesa'),
-            ('Moradia', 'despesa'),
-            ('Saúde', 'despesa'),
-            ('Educação', 'despesa'),
-            ('Lazer', 'despesa'),
-            ('Salário', 'receita'),
-            ('Investimentos', 'receita'),
-            ('Freelance', 'receita'),
-            ('Presente', 'receita')
+            ('Alimentação','despesa'), ('Transporte','despesa'), ('Moradia','despesa'),
+            ('Saúde','despesa'),       ('Educação','despesa'),   ('Lazer','despesa'),
+            ('Salário','receita'),     ('Investimentos','receita'),
+            ('Freelance','receita'),   ('Presente','receita'),
         ]
-        
         for nome, tipo in categorias_padrao:
-            try:
-                c.execute("INSERT OR IGNORE INTO categorias (nome, tipo) VALUES (?, ?)", (nome, tipo))
-            except:
-                pass
+            c.execute("INSERT OR IGNORE INTO categorias (nome, tipo) VALUES (?,?)", (nome, tipo))
 
         conn.commit()
 
-# --------------------------
-# Função para calcular próximas faturas - CORRIGIDA
-# --------------------------
-def calcular_proximas_faturas():
-    """Calcula a projeção das próximas faturas (3 meses)"""
-    hoje = datetime.now()
-    proximas_faturas = []
-    
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
-        c = conn.cursor()
-        
-        # Calcular para os próximos 3 meses
-        for meses_a_frente in range(1, 4):
-            mes_projecao = hoje.month + meses_a_frente
-            ano_projecao = hoje.year
-            
-            # Ajustar ano se passar de dezembro
-            if mes_projecao > 12:
-                mes_projecao -= 12
-                ano_projecao += 1
-            
-            # Nome do mês em português
-            meses_pt = {
-                1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
-                5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
-                9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
-            }
-            nome_mes = f"{meses_pt[mes_projecao]}/{ano_projecao}"
-            
-            # Calcular receitas fixas para este mês
-            c.execute("""
-                SELECT SUM(valor) FROM transacoes 
-                WHERE tipo = 'receita'
-                AND tipo_receita = 'fixa'
-            """)
-            receitas_fixas = c.fetchone()[0] or 0
-            
-            # Calcular despesas fixas para este mês
-            c.execute("""
-                SELECT SUM(valor) FROM transacoes 
-                WHERE tipo = 'despesa'
-                AND tipo_cobranca = 'fixa'
-            """)
-            despesas_fixas = c.fetchone()[0] or 0
-            
-            # Calcular despesas parceladas que estarão ativas neste mês - CORREÇÃO
-            c.execute("""
-                SELECT t.id, t.descricao, t.valor, t.parcelas, t.data_criacao, t.tipo_compra
-                FROM transacoes t
-                WHERE t.tipo = 'despesa'
-                AND t.pagamento = 'parcelado'
-                AND t.parcelas > 1
-            """)
-            despesas_parceladas = c.fetchall()
-            
-            despesas_parceladas_mes = 0
-            print(f"\n=== CÁLCULO PARCELAS MÊS {mes_projecao}/{ano_projecao} ===")
-            
-            for transacao_id, descricao, valor_total, parcelas, data_criacao, tipo_compra in despesas_parceladas:
-                if data_criacao:
-                    try:
-                        data_compra = datetime.strptime(data_criacao, '%Y-%m-%d %H:%M:%S')
-                        valor_parcela = valor_total / parcelas
-                        
-                        print(f"Transação {transacao_id}: {descricao}")
-                        print(f"  Valor total: R$ {valor_total:.2f}, Parcelas: {parcelas}")
-                        print(f"  Valor parcela: R$ {valor_parcela:.2f}")
-                        print(f"  Data compra: {data_compra.strftime('%d/%m/%Y')}")
-                        
-                        # Verificar se esta parcela ainda estará ativa no mês da projeção
-                        for parcela_num in range(parcelas):
-                            mes_parcela = data_compra.month + parcela_num
-                            ano_parcela = data_compra.year
-                            
-                            # Ajustar mês/ano se passar de dezembro
-                            while mes_parcela > 12:
-                                mes_parcela -= 12
-                                ano_parcela += 1
-                            
-                            if mes_parcela == mes_projecao and ano_parcela == ano_projecao:
-                                despesas_parceladas_mes += valor_parcela
-                                print(f"  ✓ Parcela {parcela_num + 1} cai em {mes_projecao}/{ano_projecao}: +R$ {valor_parcela:.2f}")
-                            else:
-                                print(f"  ✗ Parcela {parcela_num + 1} cai em {mes_parcela}/{ano_parcela}")
-                                
-                    except Exception as e:
-                        print(f"Erro ao processar parcela: {e}")
-                        continue
-            
-            print(f"Total despesas parceladas mês {mes_projecao}: R$ {despesas_parceladas_mes:.2f}")
-            
-            # Calcular saldo final do mês
-            receitas_total = receitas_fixas
-            despesas_total = despesas_fixas + despesas_parceladas_mes
-            saldo_final = receitas_total - despesas_total
-            
-            print(f"Resumo {nome_mes}:")
-            print(f"  Receitas fixas: R$ {receitas_fixas:.2f}")
-            print(f"  Despesas fixas: R$ {despesas_fixas:.2f}")
-            print(f"  Despesas parceladas: R$ {despesas_parceladas_mes:.2f}")
-            print(f"  Saldo final: R$ {saldo_final:.2f}")
-            print("=" * 50)
-            
-            proximas_faturas.append({
-                'mes_ano': nome_mes,
-                'receitas_total': receitas_total,
-                'despesas_total': despesas_total,
-                'saldo_final': saldo_final
-            })
-    
-    return proximas_faturas
-# --------------------------
-# Função para calcular despesas da fatura atual - VERSÃO CORRIGIDA
-# --------------------------
-def calcular_despesas_fatura_atual():
-    """Calcula o total de despesas que estão na fatura atual (em aberto) - CORREÇÃO: dia do fechamento vai para próxima fatura"""
-    hoje = datetime.now()
-    despesas_fatura_atual = 0
-    
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
-        c = conn.cursor()
-        
-        c.execute("SELECT id, dias_fechamento, data_vencimento FROM cartoes WHERE tipo_pagamento IN ('credito', 'multiplo')")
-        cartoes = c.fetchall()
-        
-        for cartao_id, dias_fechamento, data_vencimento in cartoes:
-            if dias_fechamento and data_vencimento:
-                try:
-                    # CORREÇÃO: Lógica correta - dia do fechamento vai para PRÓXIMA fatura
-                    
-                    # FATURA ATUAL: que vence no data_vencimento do PRÓXIMO mês
-                    if hoje.month == 12:
-                        mes_vencimento_fatura_atual = 1
-                        ano_vencimento_fatura_atual = hoje.year + 1
-                    else:
-                        mes_vencimento_fatura_atual = hoje.month + 1
-                        ano_vencimento_fatura_atual = hoje.year
-                    
-                    data_vencimento_fatura_atual = datetime(ano_vencimento_fatura_atual, mes_vencimento_fatura_atual, data_vencimento)
-                    data_fechamento_fatura_atual = data_vencimento_fatura_atual - timedelta(days=dias_fechamento)
-                    
-                    # FATURA ANTERIOR: para calcular o início do período
-                    if hoje.month == 1:
-                        mes_vencimento_fatura_anterior = 12
-                        ano_vencimento_fatura_anterior = hoje.year - 1
-                    else:
-                        mes_vencimento_fatura_anterior = hoje.month
-                        ano_vencimento_fatura_anterior = hoje.year
-                    
-                    data_vencimento_fatura_anterior = datetime(ano_vencimento_fatura_anterior, mes_vencimento_fatura_anterior, data_vencimento)
-                    data_fechamento_fatura_anterior = data_vencimento_fatura_anterior - timedelta(days=dias_fechamento)
-                    
-                    # PERÍODO CORRETO: 
-                    # INÍCIO: dia do fechamento da fatura anterior (INCLUSIVE) - vai para fatura atual
-                    # FIM: dia ANTERIOR ao fechamento da fatura atual - vai para fatura atual
-                    data_inicio_periodo = data_fechamento_fatura_anterior
-                    data_fim_periodo = data_fechamento_fatura_atual - timedelta(days=1)
-                    
-                    # DEBUG: Mostrar período calculado
-                    print(f"=== CÁLCULO PERÍODO FATURA ===")
-                    print(f"Cartão {cartao_id}:")
-                    print(f"  Hoje: {hoje.strftime('%d/%m/%Y')}")
-                    print(f"  Vencimento: dia {data_vencimento}")
-                    print(f"  Fechamento: {dias_fechamento} dias antes")
-                    print(f"  Fatura atual: {mes_vencimento_fatura_atual}/{ano_vencimento_fatura_atual} (vence {data_vencimento_fatura_atual.strftime('%d/%m/%Y')})")
-                    print(f"  Fechamento atual: {data_fechamento_fatura_atual.strftime('%d/%m/%Y')}")
-                    print(f"  Fechamento anterior: {data_fechamento_fatura_anterior.strftime('%d/%m/%Y')}")
-                    print(f"  Período fatura atual: {data_inicio_periodo.strftime('%d/%m/%Y')} a {data_fim_periodo.strftime('%d/%m/%Y')}")
-                    
-                    # Buscar despesas neste período
-                    c.execute("""
-                        SELECT SUM(valor) FROM transacoes 
-                        WHERE tipo = 'despesa'
-                        AND id_cartao = ?
-                        AND DATE(data_criacao) BETWEEN DATE(?) AND DATE(?)
-                    """, (cartao_id, data_inicio_periodo.strftime('%Y-%m-%d'), data_fim_periodo.strftime('%Y-%m-%d')))
-                    
-                    despesas_cartao = c.fetchone()[0] or 0
-                    despesas_fatura_atual += despesas_cartao
-                    
-                    print(f"  Despesas no período: R$ {despesas_cartao}")
-                    
-                    # DEBUG: Verificar despesas específicas
-                    c.execute("""
-                        SELECT descricao, valor, DATE(data_criacao) 
-                        FROM transacoes 
-                        WHERE tipo = 'despesa'
-                        AND id_cartao = ?
-                        AND DATE(data_criacao) BETWEEN DATE(?) AND DATE(?)
-                    """, (cartao_id, data_inicio_periodo.strftime('%Y-%m-%d'), data_fim_periodo.strftime('%Y-%m-%d')))
-                    
-                    despesas_detalhadas = c.fetchall()
-                    for desc, valor, data in despesas_detalhadas:
-                        print(f"    - {desc}: R$ {valor} em {data}")
-                    print("=" * 50)
-                    
-                except ValueError as e:
-                    print(f"Erro no cartão {cartao_id}: {e}")
-                    continue
-    
-    return despesas_fatura_atual
 
-# --------------------------
-# Rotas principais
-# --------------------------
+# ==============================================================
+# HELPERS DE DATA  ← PONTO CENTRAL DE TODA LÓGICA DE FATURA
+# ==============================================================
+
+def periodo_fatura_atual(dia_vencimento: int, dias_fechamento: int, referencia: date = None):
+    """
+    Retorna (inicio, fim) do período que compõe a fatura ATUAL do cartão.
+
+    Regra:
+      - A fatura fecha `dias_fechamento` dias antes do vencimento.
+      - Compras feitas NO DIA do fechamento ou depois entram na PRÓXIMA fatura.
+      - Portanto o período da fatura atual é:
+          início = fechamento da fatura anterior   (inclusive)
+          fim    = fechamento da fatura atual - 1  (inclusive)
+
+    Exemplo: vencimento dia 10, fecha 5 dias antes (dia 5)
+      Fatura atual: 06/mar a 05/abr  →  vence 10/abr
+    """
+    if referencia is None:
+        referencia = date.today()
+
+    # Calcula a data de fechamento no mês atual e no próximo
+    def fechamento_de(ano, mes):
+        venc = date(ano, mes, dia_vencimento)
+        return venc - timedelta(days=dias_fechamento)
+
+    hoje = referencia
+
+    # Vencimento "corrente" — mesmo mês de hoje
+    try:
+        venc_corrente = date(hoje.year, hoje.month, dia_vencimento)
+    except ValueError:
+        # dia_vencimento > dias no mês → usa último dia
+        import calendar
+        ultimo = calendar.monthrange(hoje.year, hoje.month)[1]
+        venc_corrente = date(hoje.year, hoje.month, ultimo)
+
+    fech_corrente = venc_corrente - timedelta(days=dias_fechamento)
+
+    if hoje < fech_corrente:
+        # Ainda não fechou → fatura atual vence neste mês
+        venc_atual = venc_corrente
+    else:
+        # Já fechou → fatura atual vence no próximo mês
+        venc_atual = venc_corrente + relativedelta(months=1)
+
+    venc_anterior = venc_atual - relativedelta(months=1)
+
+    fech_atual    = venc_atual    - timedelta(days=dias_fechamento)
+    fech_anterior = venc_anterior - timedelta(days=dias_fechamento)
+
+    inicio = fech_anterior      # inclusive
+    fim    = fech_atual - timedelta(days=1)  # inclusive (dia do fechamento vai p/ próxima)
+
+    return inicio, fim, venc_atual
+
+
+def projecao_mensal(n_meses: int = 3):
+    """
+    Retorna lista com projeção dos próximos n_meses.
+    Cada item: { mes_ano, receitas, despesas_fixas, despesas_parceladas, saldo }
+    """
+    hoje = date.today()
+    resultado = []
+
+    with get_db() as conn:
+        c = conn.cursor()
+
+        for delta in range(1, n_meses + 1):
+            alvo = hoje + relativedelta(months=delta)
+            ano_alvo, mes_alvo = alvo.year, alvo.month
+
+            # ── Receitas fixas ──────────────────────────────────────
+            c.execute("""
+                SELECT COALESCE(SUM(valor), 0) FROM transacoes
+                WHERE tipo = 'receita' AND tipo_receita = 'fixa'
+            """)
+            rec_fixas = c.fetchone()[0]
+
+            # ── Despesas fixas ──────────────────────────────────────
+            c.execute("""
+                SELECT COALESCE(SUM(valor), 0) FROM transacoes
+                WHERE tipo = 'despesa' AND tipo_cobranca = 'fixa'
+            """)
+            desp_fixas = c.fetchone()[0]
+
+            # ── Despesas parceladas que caem neste mês ──────────────
+            c.execute("""
+                SELECT id, valor, parcelas, data_lancamento
+                FROM transacoes
+                WHERE tipo = 'despesa' AND pagamento = 'parcelado' AND parcelas >= 2
+            """)
+            desp_parc = 0
+            for row in c.fetchall():
+                tid, valor_total, parcelas, data_str = row
+                try:
+                    data_compra = date.fromisoformat(str(data_str)[:10])
+                except Exception:
+                    continue
+                valor_parcela = valor_total / parcelas
+                for p in range(parcelas):
+                    mes_parcela = data_compra + relativedelta(months=p)
+                    if mes_parcela.year == ano_alvo and mes_parcela.month == mes_alvo:
+                        desp_parc += valor_parcela
+                        break
+
+            meses_pt = {1:'Jan',2:'Fev',3:'Mar',4:'Abr',5:'Mai',6:'Jun',
+                        7:'Jul',8:'Ago',9:'Set',10:'Out',11:'Nov',12:'Dez'}
+            resultado.append({
+                'mes_ano':            f"{meses_pt[mes_alvo]}/{ano_alvo}",
+                'receitas':           round(rec_fixas, 2),
+                'despesas_fixas':     round(desp_fixas, 2),
+                'despesas_parceladas':round(desp_parc, 2),
+                'saldo':              round(rec_fixas - desp_fixas - desp_parc, 2),
+            })
+
+    return resultado
+
+
+def total_fatura_atual():
+    """Soma de TODAS as despesas de crédito que estão na fatura atual de cada cartão."""
+    total = 0.0
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, data_vencimento, dias_fechamento
+            FROM cartoes WHERE tipo_pagamento IN ('credito','multiplo')
+            AND data_vencimento IS NOT NULL AND dias_fechamento IS NOT NULL
+        """)
+        for cartao_id, dia_venc, dias_fech in c.fetchall():
+            inicio, fim, _ = periodo_fatura_atual(dia_venc, dias_fech)
+            c.execute("""
+                SELECT COALESCE(SUM(valor), 0) FROM transacoes
+                WHERE tipo = 'despesa' AND tipo_compra = 'credito'
+                AND id_cartao = ?
+                AND data_lancamento BETWEEN ? AND ?
+            """, (cartao_id, inicio.isoformat(), fim.isoformat()))
+            total += c.fetchone()[0]
+    return round(total, 2)
+
+
+# ==============================================================
+# ROTA PRINCIPAL  /
+# ==============================================================
+
 @app.route('/')
 def index():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+    with get_db() as conn:
         c = conn.cursor()
-        
-        # Últimas transações
+
+        # Últimas 10 transações
         c.execute("""
-            SELECT t.id, t.descricao, t.tipo, t.valor, t.categoria, 
-                   c.nome as conta_nome, ct.nome as cartao_nome, DATE(t.data_criacao) as data
+            SELECT t.id, t.descricao, t.tipo, t.valor, t.categoria,
+                   co.nome  AS conta_nome,
+                   ca.nome  AS cartao_nome,
+                   t.data_lancamento
             FROM transacoes t
-            LEFT JOIN contas c ON t.id_conta = c.id
-            LEFT JOIN cartoes ct ON t.id_cartao = ct.id
-            ORDER BY t.data_criacao DESC
+            LEFT JOIN contas  co ON t.id_conta  = co.id
+            LEFT JOIN cartoes ca ON t.id_cartao = ca.id
+            ORDER BY t.data_lancamento DESC, t.id DESC
             LIMIT 10
         """)
-        transacoes = c.fetchall()
+        transacoes = [dict(r) for r in c.fetchall()]
 
-        # Saldo total nas contas
-        c.execute("SELECT SUM(saldo) FROM contas")
-        saldo_total = c.fetchone()[0] or 0
+        # Saldo total
+        c.execute("SELECT COALESCE(SUM(saldo), 0) FROM contas")
+        saldo_total = round(c.fetchone()[0], 2)
 
-        # PROJEÇÃO DE RECEITAS FIXAS FUTURAS (que ainda não aconteceram este mês)
+        # Receitas do mês atual
+        hoje = date.today()
         c.execute("""
-            SELECT SUM(valor) FROM transacoes 
+            SELECT COALESCE(SUM(valor), 0) FROM transacoes
             WHERE tipo = 'receita'
-            AND tipo_receita = 'fixa'
-            AND (strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now') OR data_criacao IS NULL)
-        """)
-        receitas_fixas_futuras = c.fetchone()[0] or 0
+            AND strftime('%Y-%m', data_lancamento) = ?
+        """, (hoje.strftime('%Y-%m'),))
+        receitas_mes = round(c.fetchone()[0], 2)
 
-        # PROJEÇÃO DE DESPESAS FIXAS FUTURAS (considerando datas de fechamento/vencimento)
-        hoje = datetime.now()
-        
-        c.execute("SELECT id, dias_fechamento, data_vencimento FROM cartoes WHERE tipo_pagamento IN ('credito', 'multiplo')")
-        cartoes = c.fetchall()
-        
-        despesas_fixas_futuras = 0
-        
-        for cartao_id, dias_fechamento, data_vencimento in cartoes:
-            if dias_fechamento and data_vencimento:
-                try:
-                    # MESMA LÓGICA AUTO-SUSTENTÁVEL
-                    if hoje.month == 12:
-                        mes_vencimento_fatura_atual = 1
-                        ano_vencimento_fatura_atual = hoje.year + 1
-                    else:
-                        mes_vencimento_fatura_atual = hoje.month + 1
-                        ano_vencimento_fatura_atual = hoje.year
-                    
-                    data_vencimento_fatura_atual = datetime(ano_vencimento_fatura_atual, mes_vencimento_fatura_atual, data_vencimento)
-                    data_fechamento_fatura_atual = data_vencimento_fatura_atual - timedelta(days=dias_fechamento)
-                    
-                    if hoje.month == 1:
-                        mes_vencimento_fatura_anterior = 12
-                        ano_vencimento_fatura_anterior = hoje.year - 1
-                    else:
-                        mes_vencimento_fatura_anterior = hoje.month
-                        ano_vencimento_fatura_anterior = hoje.year
-                    
-                    data_vencimento_fatura_anterior = datetime(ano_vencimento_fatura_anterior, mes_vencimento_fatura_anterior, data_vencimento)
-                    data_fechamento_fatura_anterior = data_vencimento_fatura_anterior - timedelta(days=dias_fechamento)
-                    
-                    # Buscar despesas fixas que caem dentro do período da fatura atual
-                    c.execute("""
-                        SELECT SUM(valor) FROM transacoes 
-                        WHERE tipo = 'despesa'
-                        AND tipo_cobranca = 'fixa'
-                        AND (strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now') OR data_criacao IS NULL)
-                        AND dia_vencimento > ? AND dia_vencimento <= ?
-                    """, (data_fechamento_fatura_anterior.day, data_fechamento_fatura_atual.day))
-                    
-                    despesas_cartao = c.fetchone()[0] or 0
-                    despesas_fixas_futuras += despesas_cartao
-                    
-                    print(f"Despesas fixas futuras - Cartão {cartao_id}: R$ {despesas_cartao}")
-                    print(f"  Período: dia {data_fechamento_fatura_anterior.day + 1} a {data_fechamento_fatura_atual.day}")
-                    
-                except ValueError as e:
-                    print(f"Erro no cartão {cartao_id} (fixas): {e}")
-                    continue
-
-        # DESPESAS DA FATURA ATUAL (CORREÇÃO PRINCIPAL)
-        despesas_fatura_atual = calcular_despesas_fatura_atual()
-
-        # CÁLCULO CORRETO DO DISPONÍVEL MÊS:
-        disponivel_mes = saldo_total + receitas_fixas_futuras - despesas_fixas_futuras - despesas_fatura_atual
-
-        print(f"DEBUG CÁLCULO:")
-        print(f"  Saldo total: R$ {saldo_total}")
-        print(f"  Receitas fixas futuras: R$ {receitas_fixas_futuras}")
-        print(f"  Despesas fixas futuras: R$ {despesas_fixas_futuras}")
-        print(f"  Despesas fatura atual: R$ {despesas_fatura_atual}")
-        print(f"  Disponível mês: R$ {disponivel_mes}")
-
-        # Gastos no crédito da fatura atual (para o card de informação)
-        gasto_credito_fatura_atual = 0
-        
-        for cartao_id, dias_fechamento, data_vencimento in cartoes:
-            if dias_fechamento and data_vencimento:
-                try:
-                    if hoje.month == 12:
-                        mes_vencimento = 1
-                        ano_vencimento = hoje.year + 1
-                    else:
-                        mes_vencimento = hoje.month + 1
-                        ano_vencimento = hoje.year
-                    
-                    data_vencimento_fatura = datetime(ano_vencimento, mes_vencimento, data_vencimento)
-                    data_fechamento_fatura = data_vencimento_fatura - timedelta(days=dias_fechamento)
-                    
-                    if hoje.month == 1:
-                        mes_vencimento_anterior = 12
-                        ano_vencimento_anterior = hoje.year - 1
-                    else:
-                        mes_vencimento_anterior = hoje.month
-                        ano_vencimento_anterior = hoje.year
-                    
-                    data_vencimento_anterior = datetime(ano_vencimento_anterior, mes_vencimento_anterior, data_vencimento)
-                    data_fechamento_anterior = data_vencimento_anterior - timedelta(days=dias_fechamento)
-                    
-                    c.execute("""
-                        SELECT SUM(valor) FROM transacoes 
-                        WHERE tipo = 'despesa' 
-                        AND tipo_compra = 'credito'
-                        AND id_cartao = ?
-                        AND DATE(data_criacao) BETWEEN DATE(?) AND DATE(?)
-                    """, (cartao_id, data_fechamento_anterior.strftime('%Y-%m-%d'), data_fechamento_fatura.strftime('%Y-%m-%d')))
-                    
-                    gasto_cartao = c.fetchone()[0] or 0
-                    gasto_credito_fatura_atual += gasto_cartao
-                except ValueError:
-                    continue
-
-        # TOTAL DE RECEITAS DO MÊS (para outro card)
+        # Top 5 categorias (mês atual)
         c.execute("""
-            SELECT SUM(valor) FROM transacoes 
-            WHERE tipo = 'receita'
-            AND strftime('%Y-%m', data_criacao) = strftime('%Y-%m', 'now')
-        """)
-        receitas_mes = c.fetchone()[0] or 0
-
-        # Gastos por categoria (este mês)
-        c.execute("""
-            SELECT categoria, SUM(valor) as total 
-            FROM transacoes 
+            SELECT COALESCE(categoria,'Sem categoria') AS cat, SUM(valor) AS total
+            FROM transacoes
             WHERE tipo = 'despesa'
-            AND strftime('%Y-%m', data_criacao) = strftime('%Y-%m', 'now')
-            GROUP BY categoria 
-            ORDER BY total DESC 
-            LIMIT 5
-        """)
-        gastos_cat_raw = c.fetchall()
-        gastos_por_categoria = []
-        for row in gastos_cat_raw:
-            gastos_por_categoria.append({'nome': row[0] or 'Sem categoria', 'total': row[1] or 0})
+            AND strftime('%Y-%m', data_lancamento) = ?
+            GROUP BY cat ORDER BY total DESC LIMIT 5
+        """, (hoje.strftime('%Y-%m'),))
+        gastos_por_categoria = [{'nome': r[0], 'total': round(r[1], 2)} for r in c.fetchall()]
 
-        # Metas
-        meta_economia_atual = min(650, 1000)
-        meta_economia_percentual = int((meta_economia_atual / 1000) * 100) if 1000 > 0 else 0
-        
-        meta_gastos_atual = min(1500, 2000)
-        meta_gastos_percentual = int((meta_gastos_atual / 2000) * 100) if 2000 > 0 else 0
-        
-        meta_economia = {'meta': 1000, 'atual': meta_economia_atual, 'percentual': meta_economia_percentual}
-        meta_gastos = {'meta': 2000, 'atual': meta_gastos_atual, 'percentual': meta_gastos_percentual}
-        
-        # PRÓXIMAS FATURAS (nova funcionalidade)
-        proximas_faturas = calcular_proximas_faturas()
+    gasto_credito  = total_fatura_atual()
+    proximas_faturas = projecao_mensal(3)
 
-    return render_template('index.html', 
-                         transacoes=transacoes,
-                         saldo_total=saldo_total,
-                         gasto_credito=gasto_credito_fatura_atual,
-                         receitas_mes=receitas_mes,
-                         disponivel_mes=disponivel_mes,
-                         proximas_faturas=proximas_faturas,
-                         gastos_por_categoria=gastos_por_categoria,
-                         meta_economia=meta_economia,
-                         meta_gastos=meta_gastos)
+    return render_template('index.html',
+        transacoes=transacoes,
+        saldo_total=saldo_total,
+        receitas_mes=receitas_mes,
+        gasto_credito=gasto_credito,
+        disponivel_mes=round(saldo_total + receitas_mes - gasto_credito, 2),
+        proximas_faturas=proximas_faturas,
+        gastos_por_categoria=gastos_por_categoria,
+    )
 
-# --------------------------
-# API para dados do dashboard (atualização em tempo real)
-# --------------------------
+
+# ==============================================================
+# API — DASHBOARD (atualização via JS)
+# ==============================================================
+
 @app.route('/api/dashboard_data')
 def dashboard_data():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+    with get_db() as conn:
         c = conn.cursor()
-        
-        # Saldo total nas contas
-        c.execute("SELECT SUM(saldo) FROM contas")
-        saldo_total = c.fetchone()[0] or 0
+        c.execute("SELECT COALESCE(SUM(saldo), 0) FROM contas")
+        saldo_total = round(c.fetchone()[0], 2)
 
-        # PROJEÇÃO DE RECEITAS FIXAS FUTURAS
+        hoje = date.today()
         c.execute("""
-            SELECT SUM(valor) FROM transacoes 
-            WHERE tipo = 'receita'
-            AND tipo_receita = 'fixa'
-            AND (strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now') OR data_criacao IS NULL)
-        """)
-        receitas_fixas_futuras = c.fetchone()[0] or 0
+            SELECT COALESCE(SUM(valor), 0) FROM transacoes
+            WHERE tipo='receita' AND strftime('%Y-%m', data_lancamento) = ?
+        """, (hoje.strftime('%Y-%m'),))
+        receitas_mes = round(c.fetchone()[0], 2)
 
-        # PROJEÇÃO DE DESPESAS FIXAS FUTURAS
-        hoje = datetime.now()
-        dia_hoje = hoje.day
-        mes_hoje = hoje.month
-        ano_hoje = hoje.year
-
-        c.execute("""
-            SELECT id, dias_fechamento, data_vencimento 
-            FROM cartoes 
-            WHERE tipo_pagamento IN ('credito', 'multiplo')
-        """)
-        cartoes = c.fetchall()
-        
-        despesas_fixas_futuras = 0
-        
-        for cartao_id, dias_fechamento, data_vencimento in cartoes:
-            if dias_fechamento and data_vencimento:
-                try:
-                    mes_vencimento = mes_hoje + 1 if mes_hoje < 12 else 1
-                    ano_vencimento = ano_hoje if mes_hoje < 12 else ano_hoje + 1
-                    
-                    data_vencimento_fatura = datetime(ano_vencimento, mes_vencimento, data_vencimento)
-                    data_fechamento_fatura = data_vencimento_fatura - timedelta(days=dias_fechamento)
-                    
-                    mes_vencimento_anterior = mes_hoje
-                    ano_vencimento_anterior = ano_hoje
-                    data_vencimento_anterior = datetime(ano_vencimento_anterior, mes_vencimento_anterior, data_vencimento)
-                    data_fechamento_anterior = data_vencimento_anterior - timedelta(days=dias_fechamento)
-                    
-                    c.execute("""
-                        SELECT SUM(valor) FROM transacoes 
-                        WHERE tipo = 'despesa'
-                        AND tipo_cobranca = 'fixa'
-                        AND (strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now') OR data_criacao IS NULL)
-                        AND dia_vencimento > ? AND dia_vencimento <= ?
-                    """, (data_fechamento_anterior.day, data_fechamento_fatura.day))
-                    
-                    despesas_cartao = c.fetchone()[0] or 0
-                    despesas_fixas_futuras += despesas_cartao
-                    
-                except ValueError:
-                    continue
-
-        # DESPESAS DA FATURA ATUAL (CORREÇÃO PRINCIPAL)
-        despesas_fatura_atual = calcular_despesas_fatura_atual()
-
-        # CÁLCULO CORRETO DO DISPONÍVEL MÊS
-        disponivel_mes = saldo_total + receitas_fixas_futuras - despesas_fixas_futuras - despesas_fatura_atual
-
-        # Gastos no crédito da fatura atual
-        gasto_credito_fatura_atual = 0
-        
-        for cartao_id, dias_fechamento, data_vencimento in cartoes:
-            if dias_fechamento and data_vencimento:
-                try:
-                    mes_vencimento = mes_hoje + 1 if mes_hoje < 12 else 1
-                    ano_vencimento = ano_hoje if mes_hoje < 12 else ano_hoje + 1
-                    
-                    data_vencimento_fatura = datetime(ano_vencimento, mes_vencimento, data_vencimento)
-                    data_fechamento_fatura = data_vencimento_fatura - timedelta(days=dias_fechamento)
-                    
-                    mes_vencimento_anterior = mes_hoje
-                    ano_vencimento_anterior = ano_hoje
-                    data_vencimento_anterior = datetime(ano_vencimento_anterior, mes_vencimento_anterior, data_vencimento)
-                    data_fechamento_anterior = data_vencimento_anterior - timedelta(days=dias_fechamento)
-                    
-                    c.execute("""
-                        SELECT SUM(valor) FROM transacoes 
-                        WHERE tipo = 'despesa' 
-                        AND tipo_compra = 'credito'
-                        AND id_cartao = ?
-                        AND DATE(data_criacao) BETWEEN DATE(?) AND DATE(?)
-                    """, (cartao_id, data_fechamento_anterior.strftime('%Y-%m-%d'), data_fechamento_fatura.strftime('%Y-%m-%d')))
-                    
-                    gasto_cartao = c.fetchone()[0] or 0
-                    gasto_credito_fatura_atual += gasto_cartao
-                except ValueError:
-                    continue
-
-        # Total de receitas do mês
-        c.execute("""
-            SELECT SUM(valor) FROM transacoes 
-            WHERE tipo = 'receita'
-            AND strftime('%Y-%m', data_criacao) = strftime('%Y-%m', 'now')
-        """)
-        receitas_mes = c.fetchone()[0] or 0
-
+    gasto_credito = total_fatura_atual()
     return jsonify({
-        'saldo_total': saldo_total,
-        'gasto_credito': gasto_credito_fatura_atual,
-        'receitas_mes': receitas_mes,
-        'disponivel_mes': disponivel_mes
+        'saldo_total':   saldo_total,
+        'receitas_mes':  receitas_mes,
+        'gasto_credito': gasto_credito,
+        'disponivel_mes': round(saldo_total + receitas_mes - gasto_credito, 2),
     })
 
-# --------------------------
-# Lançamentos - DESPESAS - CORRIGIDA
-# --------------------------
+
+# ==============================================================
+# LANÇAMENTOS — DESPESAS
+# ==============================================================
+
 @app.route('/lancamentos')
 def lancamentos():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+    with get_db() as conn:
         c = conn.cursor()
         c.execute("""
-            SELECT t.id, t.descricao, t.tipo, t.valor, t.categoria, 
-                   ct.nome as cartao_nome, DATE(t.data_criacao) as data,
+            SELECT t.id, t.descricao, t.tipo, t.valor, t.categoria,
+                   ca.nome AS cartao_nome, t.data_lancamento,
                    t.pagamento, t.parcelas, t.tipo_compra, t.tipo_cobranca
             FROM transacoes t
-            LEFT JOIN cartoes ct ON t.id_cartao = ct.id
-            WHERE t.tipo='despesa'
-            ORDER BY t.data_criacao DESC
+            LEFT JOIN cartoes ca ON t.id_cartao = ca.id
+            WHERE t.tipo = 'despesa'
+            ORDER BY t.data_lancamento DESC, t.id DESC
         """)
-        lancamentos = c.fetchall()
+        lancamentos_db = [list(r) for r in c.fetchall()]
+    return render_template('lancamentos.html', lancamentos=lancamentos_db)
 
-        # Formatar os dados para o template
-        lancamentos_formatados = []
-        for lancamento in lancamentos:
-            lancamentos_formatados.append(list(lancamento))
 
-    return render_template('lancamentos.html', lancamentos=lancamentos_formatados)
+# ==============================================================
+# LANÇAMENTOS — RECEITAS
+# ==============================================================
 
-# --------------------------
-# Lançamentos - RECEITAS - COM TODOS OS CAMPOS
-# --------------------------
 @app.route('/lancamentosReceita')
 def lancamentosReceita():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+    with get_db() as conn:
         c = conn.cursor()
         c.execute("""
-            SELECT t.id, t.descricao, t.tipo, t.valor, t.categoria, 
-                   COALESCE(c.nome, 'N/A') as conta_nome,
-                   COALESCE(t.tipo_receita, 'avulsa') as tipo_receita,
+            SELECT t.id, t.descricao, t.tipo, t.valor, t.categoria,
+                   COALESCE(co.nome,'N/A') AS conta_nome,
+                   COALESCE(t.tipo_receita,'avulsa'),
                    t.dia_vencimento
             FROM transacoes t
-            LEFT JOIN contas c ON t.id_conta = c.id
-            WHERE t.tipo='receita'
-            ORDER BY t.data_criacao DESC
+            LEFT JOIN contas co ON t.id_conta = co.id
+            WHERE t.tipo = 'receita'
+            ORDER BY t.data_lancamento DESC, t.id DESC
         """)
-        receitas = c.fetchall()
+        receitas = [list(r) for r in c.fetchall()]
     return render_template('lancamentosReceita.html', receitas=receitas)
 
-# --------------------------
-# Lançamentos - CONTAS
-# --------------------------
+
+# ==============================================================
+# LANÇAMENTOS — CONTAS
+# ==============================================================
+
 @app.route('/lancamentosConta')
 def lancamentosConta():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+    with get_db() as conn:
         c = conn.cursor()
         c.execute("SELECT id, nome, saldo FROM contas ORDER BY nome")
-        contas = c.fetchall()
+        contas = [list(r) for r in c.fetchall()]
     return render_template('lancamentosConta.html', contas=contas)
 
-# --------------------------
-# API - CONTAS
-# --------------------------
-@app.route('/api/contas')
-def listar_contas():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
-        c = conn.cursor()
-        c.execute("SELECT id, nome FROM contas ORDER BY nome")
-        contas = c.fetchall()
-    return {"contas": [{"id": id, "nome": nome} for id, nome in contas]}
 
-@app.route("/api/adicionar_conta", methods=["POST"])
+# ==============================================================
+# LANÇAMENTOS — CARTÕES
+# ==============================================================
+
+@app.route('/lancamentosCartao')
+def lancamentosCartao():
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT ca.id, ca.nome, co.nome AS conta_nome,
+                   ca.dias_fechamento, ca.data_vencimento, ca.tipo_pagamento, ca.limite
+            FROM cartoes ca
+            LEFT JOIN contas co ON ca.conta = co.id
+            ORDER BY ca.nome
+        """)
+        cartoes = [list(r) for r in c.fetchall()]
+        c.execute("SELECT id, nome FROM contas ORDER BY nome")
+        contas = [list(r) for r in c.fetchall()]
+    return render_template('lancamentosCartao.html', cartoes=cartoes, contas=contas)
+
+
+# ==============================================================
+# LANÇAMENTOS — CATEGORIAS
+# ==============================================================
+
+@app.route('/lancamentosCategorias')
+def lancamentosCategorias():
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, nome, tipo FROM categorias ORDER BY tipo, nome")
+        categorias = [list(r) for r in c.fetchall()]
+    return render_template('lancamentosCategorias.html', categorias=categorias)
+
+
+# ==============================================================
+# PROJEÇÕES
+# ==============================================================
+
+@app.route('/projecoes')
+def projecoes():
+    faturas = projecao_mensal(6)  # 6 meses à frente
+    return render_template('projecoes.html', projecoes=faturas)
+
+
+# ==============================================================
+# VISÃO GERAL
+# ==============================================================
+
+@app.route('/visaoGeral')
+def visaoGeral():
+    with get_db() as conn:
+        c = conn.cursor()
+
+        hoje = date.today()
+        mes_atual = hoje.strftime('%Y-%m')
+
+        # Receitas e despesas dos últimos 6 meses
+        historico = []
+        for delta in range(5, -1, -1):
+            ref = hoje - relativedelta(months=delta)
+            mes_str = ref.strftime('%Y-%m')
+            meses_pt = {1:'Jan',2:'Fev',3:'Mar',4:'Abr',5:'Mai',6:'Jun',
+                        7:'Jul',8:'Ago',9:'Set',10:'Out',11:'Nov',12:'Dez'}
+            label = f"{meses_pt[ref.month]}/{ref.year}"
+
+            c.execute("""
+                SELECT COALESCE(SUM(valor),0) FROM transacoes
+                WHERE tipo='receita' AND strftime('%Y-%m', data_lancamento)=?
+            """, (mes_str,))
+            rec = round(c.fetchone()[0], 2)
+
+            c.execute("""
+                SELECT COALESCE(SUM(valor),0) FROM transacoes
+                WHERE tipo='despesa' AND strftime('%Y-%m', data_lancamento)=?
+            """, (mes_str,))
+            desp = round(c.fetchone()[0], 2)
+
+            historico.append({'label': label, 'receitas': rec, 'despesas': desp, 'saldo': round(rec-desp,2)})
+
+        # Gastos por categoria (mês atual)
+        c.execute("""
+            SELECT COALESCE(categoria,'Sem categoria'), COALESCE(SUM(valor),0)
+            FROM transacoes
+            WHERE tipo='despesa' AND strftime('%Y-%m', data_lancamento)=?
+            GROUP BY categoria ORDER BY 2 DESC
+        """, (mes_atual,))
+        por_categoria = [{'nome': r[0], 'total': round(r[1],2)} for r in c.fetchall()]
+
+        # Saldo por conta
+        c.execute("SELECT nome, saldo FROM contas ORDER BY nome")
+        por_conta = [{'nome': r[0], 'saldo': round(r[1],2)} for r in c.fetchall()]
+
+        # Fatura atual por cartão
+        c.execute("""
+            SELECT ca.id, ca.nome, ca.data_vencimento, ca.dias_fechamento, ca.limite
+            FROM cartoes ca
+            WHERE ca.tipo_pagamento IN ('credito','multiplo')
+            AND ca.data_vencimento IS NOT NULL AND ca.dias_fechamento IS NOT NULL
+        """)
+        faturas_cartoes = []
+        for cartao_id, nome_cartao, dia_venc, dias_fech, limite in c.fetchall():
+            inicio, fim, vencimento = periodo_fatura_atual(dia_venc, dias_fech)
+            c.execute("""
+                SELECT COALESCE(SUM(valor),0) FROM transacoes
+                WHERE tipo='despesa' AND tipo_compra='credito'
+                AND id_cartao=? AND data_lancamento BETWEEN ? AND ?
+            """, (cartao_id, inicio.isoformat(), fim.isoformat()))
+            gasto = round(c.fetchone()[0], 2)
+            faturas_cartoes.append({
+                'nome': nome_cartao,
+                'gasto': gasto,
+                'limite': limite,
+                'vencimento': vencimento.strftime('%d/%m/%Y'),
+                'inicio': inicio.strftime('%d/%m/%Y'),
+                'fim': fim.strftime('%d/%m/%Y'),
+            })
+
+    return render_template('visaoGeral.html',
+        historico=historico,
+        por_categoria=por_categoria,
+        por_conta=por_conta,
+        faturas_cartoes=faturas_cartoes,
+    )
+
+
+# ==============================================================
+# APIs — CONTAS
+# ==============================================================
+
+@app.route('/api/contas')
+def api_contas():
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, nome, saldo FROM contas ORDER BY nome")
+        contas = [{'id': r[0], 'nome': r[1], 'saldo': r[2]} for r in c.fetchall()]
+    return jsonify({'contas': contas})
+
+@app.route('/api/adicionar_conta', methods=['POST'])
 def adicionar_conta():
     data = request.get_json()
-    nome = data.get("nome", "").strip()
-    
+    nome = (data.get('nome') or '').strip()
     if not nome:
-        return {"success": False, "error": "Nome da conta é obrigatório"}
-    
-    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+        return jsonify({'success': False, 'error': 'Nome obrigatório'})
+    with get_db() as conn:
         c = conn.cursor()
         try:
             c.execute("INSERT INTO contas (nome, saldo) VALUES (?, 0)", (nome,))
             conn.commit()
-            conta_id = c.lastrowid
-            return {"success": True, "id": conta_id, "nome": nome}
+            return jsonify({'success': True, 'id': c.lastrowid, 'nome': nome})
         except sqlite3.IntegrityError:
-            return {"success": False, "error": "Conta já existente"}
+            return jsonify({'success': False, 'error': 'Conta já existe'})
 
-@app.route("/api/remover_conta", methods=["POST"])
+@app.route('/api/remover_conta', methods=['POST'])
 def remover_conta():
     data = request.get_json()
-    conta_id = data.get("id")
+    conta_id = data.get('id')
     if not conta_id:
-        return {"success": False, "error": "ID não fornecido"}
-
-    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+        return jsonify({'success': False, 'error': 'ID não informado'})
+    with get_db() as conn:
         c = conn.cursor()
-        
-        # Verificar se existem cartões vinculados a esta conta
         c.execute("SELECT COUNT(*) FROM cartoes WHERE conta = ?", (conta_id,))
-        cartoes_vinculados = c.fetchone()[0]
-        
-        if cartoes_vinculados > 0:
-            return {"success": False, "error": "Não é possível remover conta com cartões vinculados"}
-        
+        if c.fetchone()[0] > 0:
+            return jsonify({'success': False, 'error': 'Conta possui cartões vinculados'})
         c.execute("DELETE FROM contas WHERE id = ?", (conta_id,))
         conn.commit()
-        
-    return {"success": True}
+    return jsonify({'success': True})
 
-# --------------------------
-# Lançamentos - CARTÕES
-# --------------------------
-@app.route('/lancamentosCartao')
-def lancamentosCartao():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+
+# ==============================================================
+# APIs — CARTÕES
+# ==============================================================
+
+@app.route('/api/cartoes_disponiveis')
+def api_cartoes_disponiveis():
+    with get_db() as conn:
         c = conn.cursor()
         c.execute("""
-            SELECT c.id, c.nome, ct.nome as conta_nome, c.dias_fechamento, 
-                   c.data_vencimento, c.tipo_pagamento, c.limite
-            FROM cartoes c
-            LEFT JOIN contas ct ON c.conta = ct.id
-            ORDER BY c.nome
+            SELECT ca.id, ca.nome, ca.tipo_pagamento, co.nome AS conta_nome
+            FROM cartoes ca LEFT JOIN contas co ON ca.conta = co.id
+            ORDER BY ca.nome
         """)
-        cartoes = c.fetchall()
+        cartoes = [{'id': r[0], 'nome': r[1], 'tipo_pagamento': r[2], 'conta_nome': r[3]}
+                   for r in c.fetchall()]
+    return jsonify({'cartoes': cartoes})
 
-        c.execute("SELECT id, nome FROM contas ORDER BY nome")
-        contas = c.fetchall()
-
-    return render_template('lancamentosCartao.html', cartoes=cartoes, contas=contas)
-
-# --------------------------
-# API - CARTÕES
-# --------------------------
 @app.route('/api/adicionar_cartao', methods=['POST'])
 def adicionar_cartao():
     data = request.get_json()
-    nome = data.get("nome", "").strip()
-    conta = data.get("conta")  # id da conta
-    tipo_pagamento = data.get("tipo_pagamento")
-    data_vencimento = data.get("data_vencimento")
-    dias_fechamento = data.get("dias_fechamento")
-    limite = float(data.get("limite") or 0)
+    nome           = (data.get('nome') or '').strip()
+    conta          = data.get('conta')
+    tipo_pagamento = data.get('tipo_pagamento')
+    data_vencimento = data.get('data_vencimento')   # dia do mês
+    dias_fechamento = data.get('dias_fechamento')    # dias antes do vencimento
+    limite         = float(data.get('limite') or 0)
 
-    if not nome or not tipo_pagamento or not conta:
-        return {"success": False, "error": "Nome, tipo e conta são obrigatórios"}
+    if not nome or not conta or not tipo_pagamento:
+        return jsonify({'success': False, 'error': 'Nome, conta e tipo são obrigatórios'})
 
-    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+    with get_db() as conn:
         c = conn.cursor()
         try:
             c.execute("""
                 INSERT INTO cartoes (nome, conta, tipo_pagamento, data_vencimento, dias_fechamento, limite)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?,?,?,?,?,?)
             """, (nome, conta, tipo_pagamento, data_vencimento, dias_fechamento, limite))
             conn.commit()
-            cartao_id = c.lastrowid
-            return {"success": True, "id": cartao_id, "nome": nome}
+            return jsonify({'success': True, 'id': c.lastrowid, 'nome': nome})
         except sqlite3.IntegrityError:
-            return {"success": False, "error": "Esse cartão já existe"}
+            return jsonify({'success': False, 'error': 'Cartão já existe'})
 
-@app.route("/api/remover_cartao", methods=["POST"])
+@app.route('/api/remover_cartao', methods=['POST'])
 def remover_cartao():
     data = request.get_json()
-    cartao_id = data.get("id")
+    cartao_id = data.get('id')
     if not cartao_id:
-        return {"success": False, "error": "ID não fornecido"}
-
-    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+        return jsonify({'success': False, 'error': 'ID não informado'})
+    with get_db() as conn:
         c = conn.cursor()
         c.execute("DELETE FROM cartoes WHERE id = ?", (cartao_id,))
         conn.commit()
-    return {"success": True}
+    return jsonify({'success': True})
 
-# NOVA API - CARTÕES DISPONÍVEIS
-@app.route('/api/cartoes_disponiveis')
-def listar_cartoes_completos():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
-        c = conn.cursor()
-        c.execute("""
-            SELECT c.id, c.nome, c.tipo_pagamento, ct.nome as conta_nome
-            FROM cartoes c
-            LEFT JOIN contas ct ON c.conta = ct.id
-            ORDER BY c.nome
-        """)
-        cartoes = c.fetchall()
-    return {"cartoes": [{"id": id, "nome": nome, "tipo_pagamento": tipo, "conta_nome": conta_nome} 
-                       for id, nome, tipo, conta_nome in cartoes]}
 
-# --------------------------
-# API - Lançamentos (Adicionar / Remover) - COMPLETA E CORRIGIDA
-# --------------------------
-@app.route('/api/adicionar_lancamento', methods=['POST'])
-def api_adicionar_lancamento():
-    try:
-        data = request.get_json()
-        print(f"Dados recebidos: {data}")  # DEBUG
-        
-        if not data:
-            return {"success": False, "error": "Nenhum dado recebido"}
-            
-        descricao = data.get("descricao")
-        tipo = data.get("tipo")  # "despesa" ou "receita"
-        valor_str = data.get("valor")
-        categoria = data.get("categoria")
-        id_cartao_str = data.get("id_cartao")  # Pode vir como string
-        id_conta_str = data.get("id_conta")    # Pode vir como string
-        tipo_receita = data.get("tipo_receita", "avulsa")
-        tipo_cobranca = data.get("tipo_cobranca", "avulsa")
-        dia_vencimento_str = data.get("dia_vencimento")
-        tipo_compra = data.get("tipo_compra", "credito")
-        pagamento = data.get("pagamento", "avista")
-        parcelas_str = data.get("parcelas")
-        
-        # NOVO: Receber a data do formulário
-        data_criacao = data.get("data")
+# ==============================================================
+# APIs — CATEGORIAS
+# ==============================================================
 
-        # Validações básicas
-        if not descricao:
-            return {"success": False, "error": "Descrição é obrigatória"}
-        if not tipo:
-            return {"success": False, "error": "Tipo é obrigatório"}
-        if not valor_str:
-            return {"success": False, "error": "Valor é obrigatório"}
-            
-        try:
-            valor = float(valor_str)
-        except (ValueError, TypeError):
-            return {"success": False, "error": "Valor inválido"}
-
-        # CONVERSÃO SEGURA DOS IDs
-        id_cartao = None
-        if id_cartao_str and id_cartao_str != "":
-            try:
-                id_cartao = int(id_cartao_str)
-            except (ValueError, TypeError):
-                return {"success": False, "error": "ID do cartão inválido"}
-
-        id_conta = None
-        if id_conta_str and id_conta_str != "":
-            try:
-                id_conta = int(id_conta_str)
-            except (ValueError, TypeError):
-                return {"success": False, "error": "ID da conta inválido"}
-
-        # CONVERSÃO SEGURA DOS OUTROS CAMPOS NUMÉRICOS
-        dia_vencimento = None
-        if dia_vencimento_str and dia_vencimento_str != "":
-            try:
-                dia_vencimento = int(dia_vencimento_str)
-            except (ValueError, TypeError):
-                return {"success": False, "error": "Dia de vencimento inválido"}
-
-        parcelas = None
-        if parcelas_str and parcelas_str != "":
-            try:
-                parcelas = int(parcelas_str)
-            except (ValueError, TypeError):
-                return {"success": False, "error": "Número de parcelas inválido"}
-
-        # Validações específicas
-        if tipo == "despesa" and not id_cartao:
-            return {"success": False, "error": "Para despesas, selecione um cartão"}
-        if tipo == "receita" and not id_conta:
-            return {"success": False, "error": "Para receitas, selecione uma conta"}
-        if tipo == "receita" and tipo_receita == "fixa" and not dia_vencimento:
-            return {"success": False, "error": "Para receita fixa, informe o dia do mês"}
-
-        # Validação para tipo_compra em despesas
-        if tipo == "despesa" and tipo_compra not in ['credito', 'debito']:
-            return {"success": False, "error": "Tipo de compra inválido"}
-
-        # Validação para pagamento parcelado
-        if pagamento == "parcelado" and (not parcelas or parcelas < 2):
-            return {"success": False, "error": "Para pagamento parcelado, informe o número de parcelas (mínimo 2)"}
-
-        with sqlite3.connect("financas.db", check_same_thread=False) as conn:
-            c = conn.cursor()
-            
-            # Verificar se o cartão existe e seu tipo (apenas para despesas)
-            if tipo == "despesa" and id_cartao:
-                c.execute("SELECT tipo_pagamento FROM cartoes WHERE id = ?", (id_cartao,))
-                cartao = c.fetchone()
-                if not cartao:
-                    return {"success": False, "error": "Cartão não encontrado"}
-                
-                # Validar compatibilidade entre tipo do cartão e tipo da compra
-                tipo_cartao = cartao[0]
-                if tipo_cartao != 'multiplo' and tipo_compra != tipo_cartao:
-                    return {"success": False, "error": f"Este cartão só aceita pagamentos no {tipo_cartao}"}
-                
-                # Validar se cartão débito não está tentando parcelar
-                if tipo_cartao == 'debito' and pagamento == 'parcelado':
-                    return {"success": False, "error": "Cartão de débito não permite parcelamento"}
-            
-            # CORREÇÃO: Inserir a transação COM A DATA FORNECIDA
-            if data_criacao:
-                # Se foi fornecida uma data, usar ela
-                c.execute("""
-                    INSERT INTO transacoes (tipo, descricao, valor, categoria, id_cartao, id_conta, 
-                                           tipo_receita, tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas, data_criacao)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (tipo, descricao, valor, categoria, id_cartao, id_conta, tipo_receita, 
-                      tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas, data_criacao))
-            else:
-                # Se não foi fornecida data, usar o DEFAULT (data atual)
-                c.execute("""
-                    INSERT INTO transacoes (tipo, descricao, valor, categoria, id_cartao, id_conta, 
-                                           tipo_receita, tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (tipo, descricao, valor, categoria, id_cartao, id_conta, tipo_receita, 
-                      tipo_cobranca, dia_vencimento, tipo_compra, pagamento, parcelas))
-            
-            # ATUALIZAR SALDO DA CONTA se for RECEITA ou DESPESA NO DÉBITO
-            if tipo == "receita" and id_conta:
-                c.execute("UPDATE contas SET saldo = saldo + ? WHERE id = ?", (valor, id_conta))
-            elif tipo == "despesa" and tipo_compra == "debito" and id_cartao:
-                # Para débito, desconta direto da conta vinculada ao cartão
-                c.execute("""
-                    UPDATE contas 
-                    SET saldo = saldo - ? 
-                    WHERE id = (SELECT conta FROM cartoes WHERE id = ?)
-                """, (valor, id_cartao))
-            
-            conn.commit()
-            lancamento_id = c.lastrowid
-
-        return {"success": True, "id": lancamento_id}
-        
-    except Exception as e:
-        print(f"Erro ao adicionar lançamento: {e}")
-        import traceback
-        traceback.print_exc()  # Mostra o traceback completo para debug
-        return {"success": False, "error": f"Erro interno: {str(e)}"}
-    
-@app.route("/api/remover_lancamento", methods=["POST"])
-def remover_lancamento():
-    data = request.get_json()
-    lancamento_id = data.get("id")
-    if not lancamento_id:
-        return {"success": False, "error": "ID não fornecido"}
-
-    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
-        c = conn.cursor()
-        
-        # Buscar a transação completa para reversão
-        c.execute("""
-            SELECT tipo, valor, id_conta, id_cartao, tipo_compra 
-            FROM transacoes WHERE id = ?
-        """, (lancamento_id,))
-        transacao = c.fetchone()
-        
-        if transacao:
-            tipo, valor, id_conta, id_cartao, tipo_compra = transacao
-            
-            # Reverter saldo se for receita
-            if tipo == "receita" and id_conta:
-                c.execute("UPDATE contas SET saldo = saldo - ? WHERE id = ?", (valor, id_conta))
-            # Reverter saldo se for despesa no débito
-            elif tipo == "despesa" and tipo_compra == "debito" and id_cartao:
-                c.execute("""
-                    UPDATE contas 
-                    SET saldo = saldo + ? 
-                    WHERE id = (SELECT conta FROM cartoes WHERE id = ?)
-                """, (valor, id_cartao))
-        
-        c.execute("DELETE FROM transacoes WHERE id = ?", (lancamento_id,))
-        conn.commit()
-        
-    return {"success": True}
-
-# --------------------------
-# Categorias - COMPLETA
-# --------------------------
-@app.route('/lancamentosCategorias')
-def lancamentosCategorias():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
-        c = conn.cursor()
-        c.execute("SELECT id, nome, tipo FROM categorias ORDER BY tipo, nome")
-        categorias = c.fetchall()
-    return render_template('lancamentosCategorias.html', categorias=categorias)
-
-# API - CATEGORIAS: Com filtro por tipo
 @app.route('/api/categorias')
-def listar_categorias():
-    tipo = request.args.get('tipo')  # 'despesa' ou 'receita'
-    
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+def api_categorias():
+    tipo = request.args.get('tipo')
+    with get_db() as conn:
         c = conn.cursor()
-        
-        if tipo and tipo in ['despesa', 'receita']:
-            # Filtra por tipo específico
-            c.execute("SELECT id, nome, tipo FROM categorias WHERE tipo = ? ORDER BY nome", (tipo,))
+        if tipo in ('despesa', 'receita'):
+            c.execute("SELECT id, nome, tipo FROM categorias WHERE tipo=? ORDER BY nome", (tipo,))
         else:
-            # Retorna todas as categorias (compatibilidade)
             c.execute("SELECT id, nome, tipo FROM categorias ORDER BY nome")
-            
-        categorias = c.fetchall()
-    return {"categorias": [{"id": id, "nome": nome, "tipo": tipo} for id, nome, tipo in categorias]}
+        categorias = [{'id': r[0], 'nome': r[1], 'tipo': r[2]} for r in c.fetchall()]
+    return jsonify({'categorias': categorias})
 
-@app.route("/api/adicionar_categoria", methods=["POST"])
+@app.route('/api/adicionar_categoria', methods=['POST'])
 def adicionar_categoria():
     data = request.get_json()
-    nome = data.get("nome", "").strip()
-    tipo = data.get("tipo", "despesa")  # Padrão: despesa
-    
+    nome = (data.get('nome') or '').strip()
+    tipo = data.get('tipo', 'despesa')
     if not nome:
-        return {"success": False, "error": "Nome da categoria obrigatório"}
-
-    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+        return jsonify({'success': False, 'error': 'Nome obrigatório'})
+    with get_db() as conn:
         c = conn.cursor()
         try:
-            c.execute("INSERT INTO categorias (nome, tipo) VALUES (?, ?)", (nome, tipo))
+            c.execute("INSERT INTO categorias (nome, tipo) VALUES (?,?)", (nome, tipo))
             conn.commit()
-            categoria_id = c.lastrowid
-            return {"success": True, "id": categoria_id, "nome": nome, "tipo": tipo}
+            return jsonify({'success': True, 'id': c.lastrowid})
         except sqlite3.IntegrityError:
-            return {"success": False, "error": "Categoria já existente"}
+            return jsonify({'success': False, 'error': 'Categoria já existe'})
 
-@app.route("/api/remover_categoria", methods=["POST"])
+@app.route('/api/remover_categoria', methods=['POST'])
 def remover_categoria():
     data = request.get_json()
-    categoria_id = data.get("id")
-    if not categoria_id:
-        return {"success": False, "error": "ID não fornecido"}
-
-    with sqlite3.connect("financas.db", check_same_thread=False) as conn:
+    cat_id = data.get('id')
+    if not cat_id:
+        return jsonify({'success': False, 'error': 'ID não informado'})
+    with get_db() as conn:
         c = conn.cursor()
-        c.execute("DELETE FROM categorias WHERE id = ?", (categoria_id,))
+        c.execute("DELETE FROM categorias WHERE id = ?", (cat_id,))
         conn.commit()
-    return {"success": True}
+    return jsonify({'success': True})
 
-# --------------------------
-# NOVA API - Buscar despesas completas para a tela
-# --------------------------
-@app.route('/api/despesas_completas')
-def despesas_completas():
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
-        c = conn.cursor()
-        c.execute("""
-            SELECT t.id, t.descricao, t.tipo, t.valor, t.categoria, 
-                   ct.nome as cartao_nome, DATE(t.data_criacao) as data,
-                   t.pagamento, t.parcelas, t.tipo_compra, t.tipo_cobranca
-            FROM transacoes t
-            LEFT JOIN cartoes ct ON t.id_cartao = ct.id
-            WHERE t.tipo='despesa'
-            ORDER BY t.data_criacao DESC
-        """)
-        despesas = c.fetchall()
-    
-    # Formatar no formato esperado pelo frontend
-    despesas_formatadas = []
-    for despesa in despesas:
-        despesas_formatadas.append(list(despesa))
-    
-    return jsonify({"despesas": despesas_formatadas})
 
-# --------------------------
-# FUNÇÃO PARA GERAR RECEITAS FIXAS (Para implementar depois)
-# --------------------------
-def gerar_receitas_fixas():
-    """Função para gerar automaticamente receitas fixas no dia correto"""
-    # Esta função pode ser chamada por um agendador (cron job)
-    # ou executada quando o sistema inicia
-    hoje = datetime.now().day
-    
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+# ==============================================================
+# APIs — LANÇAMENTOS (adicionar / remover)
+# ==============================================================
+
+@app.route('/api/adicionar_lancamento', methods=['POST'])
+def adicionar_lancamento():
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'Nenhum dado recebido'})
+
+    descricao      = (data.get('descricao') or '').strip()
+    tipo           = data.get('tipo')
+    valor_str      = data.get('valor')
+    categoria      = data.get('categoria')
+    id_cartao_str  = data.get('id_cartao')
+    id_conta_str   = data.get('id_conta')
+    tipo_receita   = data.get('tipo_receita',  'avulsa')
+    tipo_cobranca  = data.get('tipo_cobranca', 'avulsa')
+    dia_venc_str   = data.get('dia_vencimento')
+    tipo_compra    = data.get('tipo_compra', 'credito')
+    pagamento      = data.get('pagamento',   'avista')
+    parcelas_str   = data.get('parcelas')
+    data_str       = data.get('data')  # YYYY-MM-DD vindo do input[type=date]
+
+    # Validações básicas
+    if not descricao:
+        return jsonify({'success': False, 'error': 'Descrição obrigatória'})
+    if tipo not in ('despesa', 'receita'):
+        return jsonify({'success': False, 'error': 'Tipo inválido'})
+
+    try:
+        valor = float(valor_str)
+        if valor <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Valor inválido'})
+
+    # Conversões seguras
+    def to_int(v):
+        try: return int(v) if v else None
+        except: return None
+
+    id_cartao = to_int(id_cartao_str)
+    id_conta  = to_int(id_conta_str)
+    dia_venc  = to_int(dia_venc_str)
+    parcelas  = to_int(parcelas_str)
+
+    # Data do lançamento — usa a data do formulário ou hoje
+    if data_str:
+        try:
+            data_lancamento = date.fromisoformat(data_str)
+        except ValueError:
+            data_lancamento = date.today()
+    else:
+        data_lancamento = date.today()
+
+    # Regras de negócio
+    if tipo == 'despesa' and not id_cartao:
+        return jsonify({'success': False, 'error': 'Selecione um cartão para a despesa'})
+    if tipo == 'receita' and not id_conta:
+        return jsonify({'success': False, 'error': 'Selecione uma conta para a receita'})
+    if tipo_receita == 'fixa' and not dia_venc:
+        return jsonify({'success': False, 'error': 'Informe o dia do mês para receita fixa'})
+    if pagamento == 'parcelado' and (not parcelas or parcelas < 2):
+        return jsonify({'success': False, 'error': 'Parcelado exige mínimo 2 parcelas'})
+
+    with get_db() as conn:
         c = conn.cursor()
-        
-        # Buscar receitas fixas que ainda não foram geradas este mês
+
+        # Valida cartão
+        if tipo == 'despesa' and id_cartao:
+            c.execute("SELECT tipo_pagamento FROM cartoes WHERE id=?", (id_cartao,))
+            row = c.fetchone()
+            if not row:
+                return jsonify({'success': False, 'error': 'Cartão não encontrado'})
+            tipo_cartao = row[0]
+            if tipo_cartao != 'multiplo' and tipo_compra != tipo_cartao:
+                return jsonify({'success': False, 'error': f'Cartão só aceita {tipo_cartao}'})
+            if tipo_cartao == 'debito' and pagamento == 'parcelado':
+                return jsonify({'success': False, 'error': 'Débito não permite parcelamento'})
+
         c.execute("""
-            SELECT id, descricao, valor, categoria, id_conta, dia_vencimento
-            FROM transacoes 
-            WHERE tipo='receita' 
-            AND tipo_receita='fixa' 
-            AND dia_vencimento = ?
-            AND strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now')
-        """, (hoje,))
-        
-        receitas_para_gerar = c.fetchall()
-        
-        for receita in receitas_para_gerar:
-            id_original, descricao, valor, categoria, id_conta, dia_vencimento = receita
-            
-            # Gerar nova receita
-            c.execute("""
-                INSERT INTO transacoes (tipo, descricao, valor, categoria, id_conta, tipo_receita, dia_vencimento)
-                VALUES (?, ?, ?, ?, ?, 'fixa', ?)
-            """, ('receita', descricao, valor, categoria, id_conta, dia_vencimento))
-            
-            # Atualizar saldo da conta
+            INSERT INTO transacoes
+                (tipo, descricao, valor, categoria, id_cartao, id_conta,
+                 tipo_receita, tipo_cobranca, dia_vencimento, tipo_compra,
+                 pagamento, parcelas, data_lancamento)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (tipo, descricao, valor, categoria, id_cartao, id_conta,
+              tipo_receita, tipo_cobranca, dia_venc, tipo_compra,
+              pagamento, parcelas, data_lancamento.isoformat()))
+
+        # Atualiza saldo
+        if tipo == 'receita' and id_conta:
             c.execute("UPDATE contas SET saldo = saldo + ? WHERE id = ?", (valor, id_conta))
-        
-        conn.commit()
-
-# --------------------------
-# FUNÇÃO PARA GERAR DESPESAS FIXAS
-# --------------------------
-def gerar_despesas_fixas():
-    """Função para gerar automaticamente despesas fixas no dia correto"""
-    hoje = datetime.now().day
-    
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
-        c = conn.cursor()
-        
-        # Buscar despesas fixas que ainda não foram geradas este mês
-        c.execute("""
-            SELECT id, descricao, valor, categoria, id_cartao, tipo_compra, dia_vencimento
-            FROM transacoes 
-            WHERE tipo='despesa' 
-            AND tipo_cobranca='fixa' 
-            AND dia_vencimento = ?
-            AND strftime('%Y-%m', data_criacao) != strftime('%Y-%m', 'now')
-        """, (hoje,))
-        
-        despesas_para_gerar = c.fetchall()
-        
-        for despesa in despesas_para_gerar:
-            id_original, descricao, valor, categoria, id_cartao, tipo_compra, dia_vencimento = despesa
-            
-            # Gerar nova despesa
+        elif tipo == 'despesa' and tipo_compra == 'debito' and id_cartao:
             c.execute("""
-                INSERT INTO transacoes (tipo, descricao, valor, categoria, id_cartao, tipo_cobranca, tipo_compra, dia_vencimento)
-                VALUES (?, ?, ?, ?, ?, 'fixa', ?, ?)
-            """, ('despesa', descricao, valor, categoria, id_cartao, tipo_compra, dia_vencimento))
-            
-            # Se for débito, desconta da conta
-            if tipo_compra == "debito" and id_cartao:
+                UPDATE contas SET saldo = saldo - ?
+                WHERE id = (SELECT conta FROM cartoes WHERE id = ?)
+            """, (valor, id_cartao))
+
+        conn.commit()
+        return jsonify({'success': True, 'id': c.lastrowid})
+
+
+@app.route('/api/remover_lancamento', methods=['POST'])
+def remover_lancamento():
+    data = request.get_json()
+    lid = data.get('id')
+    if not lid:
+        return jsonify({'success': False, 'error': 'ID não informado'})
+
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT tipo, valor, id_conta, id_cartao, tipo_compra FROM transacoes WHERE id=?", (lid,))
+        row = c.fetchone()
+        if row:
+            tipo, valor, id_conta, id_cartao, tipo_compra = row
+            if tipo == 'receita' and id_conta:
+                c.execute("UPDATE contas SET saldo = saldo - ? WHERE id = ?", (valor, id_conta))
+            elif tipo == 'despesa' and tipo_compra == 'debito' and id_cartao:
                 c.execute("""
-                    UPDATE contas 
-                    SET saldo = saldo - ? 
+                    UPDATE contas SET saldo = saldo + ?
                     WHERE id = (SELECT conta FROM cartoes WHERE id = ?)
                 """, (valor, id_cartao))
-        
+        c.execute("DELETE FROM transacoes WHERE id = ?", (lid,))
         conn.commit()
+    return jsonify({'success': True})
 
-# --------------------------
-# ROTA PARA TESTE - Gerar dados de exemplo
-# --------------------------
-@app.route('/api/gerar_dados_exemplo')
-def gerar_dados_exemplo():
-    """Rota para gerar dados de exemplo para teste"""
-    with sqlite3.connect('financas.db', check_same_thread=False) as conn:
+
+# ==============================================================
+# API — FATURA DETALHADA DE UM CARTÃO (útil para debug / futuro)
+# ==============================================================
+
+@app.route('/api/fatura/<int:cartao_id>')
+def fatura_cartao(cartao_id):
+    with get_db() as conn:
         c = conn.cursor()
-        
-        # Inserir algumas contas de exemplo
-        contas_exemplo = [
-            ('Conta Corrente', 1000.00),
-            ('Conta Poupança', 5000.00),
-            ('Carteira', 200.00)
-        ]
-        
-        for nome, saldo in contas_exemplo:
-            try:
-                c.execute("INSERT OR IGNORE INTO contas (nome, saldo) VALUES (?, ?)", (nome, saldo))
-            except:
-                pass
-        
-        # Inserir alguns cartões de exemplo
-        c.execute("SELECT id FROM contas WHERE nome = 'Conta Corrente'")
-        conta_id = c.fetchone()[0]
-        
-        cartoes_exemplo = [
-            ('Cartão Crédito Nubank', conta_id, 'credito', 10, 5, 5000.00),
-            ('Cartão Débito Itaú', conta_id, 'debito', None, None, 0),
-            ('Cartão Multi Santander', conta_id, 'multiplo', 15, 10, 3000.00)
-        ]
-        
-        for nome, conta, tipo_pagamento, data_venc, dias_fech, limite in cartoes_exemplo:
-            try:
-                c.execute("""
-                    INSERT OR IGNORE INTO cartoes (nome, conta, tipo_pagamento, data_vencimento, dias_fechamento, limite)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (nome, conta, tipo_pagamento, data_venc, dias_fech, limite))
-            except:
-                pass
-        
-        conn.commit()
-    
-    return {"success": True, "message": "Dados de exemplo gerados com sucesso"}
+        c.execute("SELECT data_vencimento, dias_fechamento FROM cartoes WHERE id=?", (cartao_id,))
+        row = c.fetchone()
+        if not row:
+            return jsonify({'success': False, 'error': 'Cartão não encontrado'})
+        inicio, fim, venc = periodo_fatura_atual(row[0], row[1])
+        c.execute("""
+            SELECT id, descricao, valor, data_lancamento, categoria
+            FROM transacoes
+            WHERE tipo='despesa' AND id_cartao=?
+            AND data_lancamento BETWEEN ? AND ?
+            ORDER BY data_lancamento
+        """, (cartao_id, inicio.isoformat(), fim.isoformat()))
+        itens = [{'id': r[0], 'descricao': r[1], 'valor': r[2],
+                  'data': r[3], 'categoria': r[4]} for r in c.fetchall()]
+    return jsonify({
+        'periodo_inicio': inicio.strftime('%d/%m/%Y'),
+        'periodo_fim':    fim.strftime('%d/%m/%Y'),
+        'vencimento':     venc.strftime('%d/%m/%Y'),
+        'itens':          itens,
+        'total':          round(sum(i['valor'] for i in itens), 2),
+    })
 
-# --------------------------
-# Outras páginas
-# --------------------------
-@app.route('/projecoes')
-def projecoes():
-    return render_template('projecoes.html')
 
-@app.route('/visaoGeral')
-def visaoGeral():
-    return render_template('visaoGeral.html')
+# ==============================================================
+# INICIALIZAÇÃO
+# ==============================================================
 
-# --------------------------
-# Inicialização
-# --------------------------
 if __name__ == '__main__':
-    # Para garantir que o banco seja recriado com todas as correções
-    if os.path.exists('financas.db'):
-        os.remove('financas.db')
-    
     init_db()
-    
-    # Gerar receitas e despesas fixas ao iniciar (opcional)
-    try:
-        gerar_receitas_fixas()
-        gerar_despesas_fixas()
-    except Exception as e:
-        print(f"Erro ao gerar transações fixas: {e}")
-    
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
