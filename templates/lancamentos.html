@@ -1,509 +1,452 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
     <meta charset="UTF-8">
     <title>Despesas - Controle de Finanças</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="icon"
-        href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico"
-        type="image/x-icon">
-</head>
+    <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
+    <style>
+        /* ── Sidebar fixa que acompanha o conteúdo ─────────────── */
+        .page-wrapper {
+            display: flex;
+            min-height: calc(100vh - 98px); /* desconta o header */
+        }
+        .sidebar-nav {
+            width: 200px;
+            min-width: 200px;
+            flex-shrink: 0;
+        }
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #adb5bd;
+            padding: 4px 12px 10px;
+        }
+        .sidebar-nav .nav-link {
+            font-size: 13px;
+            padding: 7px 12px;
+            border-radius: 6px;
+            color: rgba(255,255,255,.8) !important;
+            transition: background .15s, color .15s;
+        }
+        .sidebar-nav .nav-link:hover {
+            background: rgba(255,255,255,.1);
+            color: #fff !important;
+        }
+        .sidebar-nav .nav-link[aria-current="page"] {
+            background: rgba(255,255,255,.15);
+            color: #fff !important;
+            font-weight: 600;
+        }
+        .sidebar-content {
+            flex: 1;
+            min-width: 0;
+            padding: 1.5rem;
+        }
 
+        thead.thead-fin th { background:#1A4D2E; color:#fff; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; padding:10px 12px; border:none; white-space:nowrap; }
+        tbody tr td { font-size:13px; vertical-align:middle; }
+        .pag-info { font-size:12px; color:#6c757d; }
+        .table-wrapper { min-height:420px; }
+    </style>
+</head>
 <body class="bg-light">
 
-    <!-- Header -->
-    <header class="text-white py-3" style="background-color: #1A4D2E;">
-        <div class="container d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
-                    alt="Logo" class="me-3" style="width:80px; height:80px;">
-                <div>
-                    <h1 class="h5 mb-0">Controle de Finanças</h1>
-                    <small>Gerencie seus gastos</small>
-                </div>
-            </div>
-            <nav>
-                <a href="{{ url_for('index') }}" class="text-white text-decoration-none me-3">Início</a>
-                <a href="{{ url_for('lancamentos') }}" class="text-white text-decoration-none me-3">Lançamentos</a>
-                <a href="{{ url_for('projecoes') }}" class="text-white text-decoration-none me-3">Projeções</a>
-                <a href="{{ url_for('visaoGeral') }}" class="text-white text-decoration-none">Visão Geral</a>
-            </nav>
+<!-- Header -->
+<header class="text-white py-3" style="background-color: #1A4D2E;">
+    <div class="container d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center">
+            <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
+                 alt="Logo" class="me-3" style="width:80px;height:80px;">
+            <div><h1 class="h5 mb-0">Controle de Finanças</h1><small>Gerencie seus gastos</small></div>
         </div>
-    </header>
-
-    <div class="d-flex">
-        <!-- Sidebar -->
-        <nav class="bg-dark text-white vh-100 p-3" style="width: 200px;">
-            <h4>Opções</h4>
-            <ul class="nav flex-column">
-                <li class="nav-item"><a href="{{ url_for('lancamentos') }}" class="nav-link text-white">Despesas</a>
-                </li>
-                <li class="nav-item"><a href="{{ url_for('lancamentosReceita') }}"
-                        class="nav-link text-white">Receitas</a></li>
-                <li class="nav-item"><a href="{{ url_for('lancamentosConta') }}" class="nav-link text-white">Contas</a>
-                </li>
-                <li class="nav-item"><a href="{{ url_for('lancamentosCartao') }}"
-                        class="nav-link text-white">Cartões</a></li>
-                <li class="nav-item"><a href="{{ url_for('lancamentosCategorias') }}"
-                        class="nav-link text-white">Categorias</a></li>
-            </ul>
+        <nav>
+            <a href="{{ url_for('index') }}"       class="text-white text-decoration-none me-3">Início</a>
+            <a href="{{ url_for('lancamentos') }}" class="text-white text-decoration-none me-3">Lançamentos</a>
+            <a href="{{ url_for('projecoes') }}"   class="text-white text-decoration-none me-3">Projeções</a>
+            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none">Visão Geral</a>
         </nav>
+    </div>
+</header>
 
-        <!-- Conteúdo principal -->
-        <div class="container mt-4">
-            <div class="row g-4">
-                <div class="col-md-12">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-dark text-white text-center">Despesas</div>
-                        <div class="card-body">
-                            <form id="formDespesas" class="mb-3">
-                                <div class="row g-2 align-items-center">
-                                    <!-- Linha 1 -->
-                                    <div class="col-md-4">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 small">Descrição</span>
-                                            <input type="text" class="form-control border-start-0" id="compra"
-                                                placeholder="Ex: Supermercado, Combustível..." required>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 small">Categoria</span>
-                                            <select id="categoria" class="form-select border-start-0" required>
-                                                <option value="">Selecione...</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 small">Cartão</span>
-                                            <select id="cartao" class="form-select border-start-0" required>
-                                                <option value="">Selecione...</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 small">Data</span>
-                                            <input type="date" class="form-control border-start-0" id="dataCompra"
-                                                required>
-                                        </div>
-                                    </div>
-                                </div>
+<div class="page-wrapper">
+    <nav class="sidebar-nav bg-dark text-white p-3">
+        <div class="sidebar-title">Lançamentos</div>
+        <ul class="nav flex-column">
+            <li class="nav-item"><a href="{{ url_for('lancamentos') }}"            class="nav-link text-white" aria-current="page">Despesas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosAssinaturas') }}" class="nav-link text-white">Assinaturas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosReceita') }}"     class="nav-link text-white">Receitas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosConta') }}"       class="nav-link text-white">Contas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosCartao') }}"      class="nav-link text-white">Cartões</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosCategorias') }}"  class="nav-link text-white">Categorias</a></li>
+        </ul>
+    </nav>
+    <div class="sidebar-content">
+<!-- Conteúdo -->
+    <div class="container mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                Despesas
+                <small class="ms-2 opacity-75">— para despesas recorrentes use <a href="{{ url_for('lancamentosAssinaturas') }}" class="text-warning">Assinaturas</a></small>
+            </div>
+            <div class="card-body">
 
-                                <div class="row g-2 mt-2 align-items-center">
-                                    <!-- Linha 2 -->
-                                    <div class="col-md-2">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 small">Valor R$</span>
-                                            <input type="number" class="form-control border-start-0" id="valor"
-                                                placeholder="0,00" step="0.01" required>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 small">Cobrança</span>
-                                            <select class="form-select border-start-0" id="tipoCobranca" required>
-                                                <option value="avulsa">Avulsa</option>
-                                                <option value="fixa">Fixa</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 small">Pagamento</span>
-                                            <select class="form-select border-start-0" id="tipoPagamento" required>
-                                                <option value="avista">À vista</option>
-                                                <option value="parcelado">Parcelado</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 small">Parcelas</span>
-                                            <input type="number" class="form-control border-start-0" id="parcelas"
-                                                placeholder="-" min="2" disabled>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 small">Tipo</span>
-                                            <select class="form-select border-start-0" id="tipoCompra" disabled>
-                                                <option value="credito">Crédito</option>
-                                                <option value="debito">Débito</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button type="submit" class="btn btn-success w-100">Adicionar</button>
-                                    </div>
-                                </div>
-                            </form>
-
-                            <table class="table table-striped table-hover">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Descrição</th>
-                                        <th>Categoria</th>
-                                        <th>Cartão</th>
-                                        <th>Data</th>
-                                        <th>Cobrança</th>
-                                        <th>Pagamento</th>
-                                        <th>Parcelas</th>
-                                        <th>Tipo</th>
-                                        <th class="text-end">Valor (R$)</th>
-                                        <th class="text-center">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabelaDespesas"></tbody>
-                            </table>
+                <!-- Formulário -->
+                <form id="formDespesas" class="mb-4">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted mb-1">Descrição</label>
+                            <input type="text" class="form-control" id="compra" placeholder="Ex: Supermercado, Combustível..." required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Categoria</label>
+                            <select id="categoria" class="form-select" required>
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Cartão</label>
+                            <select id="cartao" class="form-select" required>
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Data</label>
+                            <input type="date" class="form-control" id="dataCompra" required>
                         </div>
                     </div>
+                    <div class="row g-2 mt-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Valor Total (R$)</label>
+                            <input type="number" class="form-control" id="valor" placeholder="0,00" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Pagamento</label>
+                            <select class="form-select" id="tipoPagamento">
+                                <option value="avista">À vista</option>
+                                <option value="parcelado">Parcelado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Nº Parcelas</label>
+                            <input type="number" class="form-control" id="parcelas" placeholder="—" min="2" disabled>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Tipo</label>
+                            <select class="form-select" id="tipoCompra" disabled>
+                                <option value="credito">Crédito</option>
+                                <option value="debito">Débito</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-success w-100">Adicionar Despesa</button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Info + paginação -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="pag-info" id="infoDespesas">—</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="pag-info mb-0">Linhas:</label>
+                        <select id="ippDespesas" class="form-select form-select-sm" style="width:70px;">
+                            <option value="10" selected>10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
                 </div>
+
+                <div class="table-wrapper table-responsive">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="thead-fin">
+                            <tr>
+                                <th>Descrição</th>
+                                <th>Categoria</th>
+                                <th>Cartão</th>
+                                <th>Data</th>
+                                <th>Pagamento</th>
+                                <th class="text-center">Parcelas</th>
+                                <th>Tipo</th>
+                                <th class="text-end">Valor/Mês (R$)</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaDespesas"></tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-center mt-3">
+                    <nav><ul class="pagination pagination-sm mb-0" id="pagDespesas"></ul></nav>
+                </div>
+
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const tabelaDespesas = document.querySelector("#tabelaDespesas");
-            const formDespesas = document.getElementById("formDespesas");
-            const selectCategoria = document.getElementById("categoria");
-            const selectCartao = document.getElementById("cartao");
-            const tipoPagamento = document.getElementById("tipoPagamento");
-            const parcelasInput = document.getElementById("parcelas");
-            const selectTipoCompra = document.getElementById("tipoCompra");
-            const selectTipoCobranca = document.getElementById("tipoCobranca");
+<script>
+document.addEventListener("DOMContentLoaded", () => {
 
-            let cartoesDisponiveis = [];
+    // ── Paginador genérico ──────────────────────────────────
+    function criarPaginador(tbody, selLinhas, ulPag, infoSpan) {
+        let linhas = [], pag = 1;
+        const ipp = () => parseInt(selLinhas.value);
+        const tp  = () => Math.max(1, Math.ceil(linhas.length / ipp()));
 
-            // Carregar cartões
-            function carregarCartoes() {
-                fetch("/api/cartoes_disponiveis")
-                    .then(r => r.json())
-                    .then(data => {
-                        selectCartao.innerHTML = '<option value="">Selecione...</option>';
-                        cartoesDisponiveis = data.cartoes;
+        function render() {
+            const total = linhas.length, pg = tp();
+            pag = Math.min(pag, pg);
+            const ini = (pag - 1) * ipp(), fim = Math.min(ini + ipp(), total);
+            linhas.forEach((tr, i) => tr.style.display = (i >= ini && i < fim) ? '' : 'none');
+            if (infoSpan) infoSpan.textContent = total === 0
+                ? 'Nenhum registro'
+                : `Mostrando ${ini + 1}–${fim} de ${total} registro${total !== 1 ? 's' : ''}`;
+            ulPag.innerHTML = '';
+            let b = Math.max(1, pag - 2), e = Math.min(pg, b + 4);
+            if (e - b < 4) b = Math.max(1, e - 4);
+            const add = (lbl, p, dis, act) => {
+                const li = document.createElement('li');
+                li.className = 'page-item' + (dis ? ' disabled' : '') + (act ? ' active' : '');
+                li.innerHTML = '<button class="page-link">' + lbl + '</button>';
+                if (!dis && !act) li.querySelector('button').onclick = () => { pag = p; render(); };
+                ulPag.appendChild(li);
+            };
+            add('«', 1, pag === 1); add('‹', pag - 1, pag === 1);
+            for (let p = b; p <= e; p++) add(p, p, false, p === pag);
+            add('›', pag + 1, pag === pg); add('»', pg, pag === pg);
+        }
 
-                        data.cartoes.forEach(cartao => {
-                            const option = document.createElement("option");
-                            option.value = cartao.id;
-                            option.textContent = cartao.nome;
-                            option.dataset.tipo = cartao.tipo_pagamento;
-                            selectCartao.appendChild(option);
-                        });
-                    })
-                    .catch(error => {
-                        console.error("Erro ao carregar cartões:", error);
-                    });
-            }
+        selLinhas.addEventListener('change', () => { pag = 1; render(); });
+        return {
+            adicionar(tr) { linhas.push(tr); tbody.appendChild(tr); render(); },
+            remover(tr)   { linhas = linhas.filter(l => l !== tr); tr.remove(); render(); }
+        };
+    }
 
-            // Habilita ou desabilita o campo de parcelas baseado no tipo de pagamento
-            tipoPagamento.addEventListener("change", () => {
-                const cartaoSelecionado = cartoesDisponiveis.find(c => c.id == selectCartao.value);
+    const pag = criarPaginador(
+        document.getElementById("tabelaDespesas"),
+        document.getElementById("ippDespesas"),
+        document.getElementById("pagDespesas"),
+        document.getElementById("infoDespesas")
+    );
 
-                if (tipoPagamento.value === "parcelado") {
-                    // Pagamento parcelado: só permite crédito
-                    parcelasInput.disabled = false;
-                    parcelasInput.placeholder = "Nº parcelas";
-                    
-                    // Desabilita débito e força crédito
-                    selectTipoCompra.disabled = true;
-                    selectTipoCompra.value = 'credito';
-                    selectTipoCompra.style.backgroundColor = '#e9ecef';
-                } else {
-                    // Pagamento à vista: permite escolher (se cartão for múltiplo)
-                    parcelasInput.disabled = true;
-                    parcelasInput.value = "";
-                    parcelasInput.placeholder = "-";
-                    
-                    // Habilita tipo de compra apenas se cartão for múltiplo
-                    if (cartaoSelecionado && cartaoSelecionado.tipo_pagamento === 'multiplo') {
-                        selectTipoCompra.disabled = false;
-                        selectTipoCompra.style.backgroundColor = '';
-                    } else {
-                        selectTipoCompra.disabled = true;
-                        selectTipoCompra.style.backgroundColor = '#e9ecef';
-                    }
-                }
-            });
+    // ── Referências ─────────────────────────────────────────
+    const formDespesas    = document.getElementById("formDespesas");
+    const selectCategoria = document.getElementById("categoria");
+    const selectCartao    = document.getElementById("cartao");
+    const tipoPagamento   = document.getElementById("tipoPagamento");
+    const parcelasInput   = document.getElementById("parcelas");
+    const selectTipoCompra= document.getElementById("tipoCompra");
+    let cartoesDisponiveis = [];
 
-            // Controlar campos baseado no cartão selecionado
-            selectCartao.addEventListener("change", function () {
-                const cartaoSelecionado = cartoesDisponiveis.find(c => c.id == this.value);
-
-                if (cartaoSelecionado) {
-                    if (cartaoSelecionado.tipo_pagamento === 'multiplo') {
-                        // Cartão múltiplo: habilita tipo de compra (se não for parcelado)
-                        if (tipoPagamento.value !== "parcelado") {
-                            selectTipoCompra.disabled = false;
-                            selectTipoCompra.required = true;
-                            selectTipoCompra.style.backgroundColor = '';
-                        }
-                        // Habilita seleção de pagamento
-                        tipoPagamento.disabled = false;
-                        tipoPagamento.style.backgroundColor = '';
-                    } else {
-                        // Cartão único: define valores automáticos
-                        selectTipoCompra.disabled = true;
-                        selectTipoCompra.required = false;
-                        selectTipoCompra.value = cartaoSelecionado.tipo_pagamento;
-                        selectTipoCompra.style.backgroundColor = '#e9ecef';
-
-                        // Se for débito, força à vista e desabilita parcelas
-                        if (cartaoSelecionado.tipo_pagamento === 'debito') {
-                            tipoPagamento.value = 'avista';
-                            tipoPagamento.disabled = true;
-                            tipoPagamento.style.backgroundColor = '#e9ecef';
-                            parcelasInput.disabled = true;
-                            parcelasInput.value = "";
-                            parcelasInput.placeholder = "-";
-                        } else {
-                            // Se for crédito, permite escolher
-                            tipoPagamento.disabled = false;
-                            tipoPagamento.style.backgroundColor = '';
-                        }
-                    }
-                } else {
-                    // Nenhum cartão selecionado - reseta tudo
-                    selectTipoCompra.disabled = true;
-                    selectTipoCompra.required = false;
-                    selectTipoCompra.value = 'credito';
-                    selectTipoCompra.style.backgroundColor = '#e9ecef';
-
-                    tipoPagamento.disabled = false;
-                    tipoPagamento.style.backgroundColor = '';
-                    tipoPagamento.value = 'avista';
-                    parcelasInput.disabled = true;
-                    parcelasInput.value = "";
-                    parcelasInput.placeholder = "-";
-                }
-            });
-
-            // Função para formatar data corretamente
-            function formatarData(data) {
-                if (!data) return '-';
-
-                try {
-                    // Se já é uma string de data válida
-                    if (typeof data === 'string') {
-                        if (data.includes('-')) {
-                            const date = new Date(data + 'T00:00:00');
-                            if (!isNaN(date.getTime())) {
-                                return date.toLocaleDateString('pt-BR');
-                            }
-                        }
-                        // Tentar parsear como timestamp do banco
-                        const date = new Date(data);
-                        if (!isNaN(date.getTime())) {
-                            return date.toLocaleDateString('pt-BR');
-                        }
-                    }
-
-                    // Se é um objeto Date
-                    if (data instanceof Date && !isNaN(data.getTime())) {
-                        return data.toLocaleDateString('pt-BR');
-                    }
-
-                    return '-';
-                } catch (error) {
-                    console.error('Erro ao formatar data:', error, data);
-                    return '-';
-                }
-            }
-
-            // Função: adicionar uma despesa à tabela
-            function adicionarDespesa(id, descricao, categoria, cartao, data, tipoCobranca, pagamento, parcelas, tipoCompra, valor) {
-                const tr = document.createElement("tr");
-                tr.dataset.id = id;
-
-                // Formatação dos dados para exibição
-                const dataFormatada = formatarData(data);
-                const cobrancaFormatada = tipoCobranca === "fixa" ? "Fixa" : "Avulsa";
-                const pagamentoFormatado = pagamento === "parcelado" ? "Parcelado" : "À vista";
-                const parcelasFormatado = pagamento === "parcelado" ? `${parcelas}x` : "-";
-                const tipoCompraFormatado = tipoCompra === "credito" ? "Crédito" : "Débito";
-                const valorFormatado = parseFloat(valor).toFixed(2).replace('.', ',');
-
-                tr.innerHTML = `
-                    <td>${descricao}</td>
-                    <td>${categoria}</td>
-                    <td>${cartao}</td>
-                    <td>${dataFormatada}</td>
-                    <td>${cobrancaFormatada}</td>
-                    <td>${pagamentoFormatado}</td>
-                    <td class="text-center">${parcelasFormatado}</td>
-                    <td>${tipoCompraFormatado}</td>
-                    <td class="text-end">R$ ${valorFormatado}</td>
-                    <td class="text-center"><button class="btn btn-danger btn-sm">Remover</button></td>
-                `;
-                tabelaDespesas.appendChild(tr);
-
-                // Evento para remover despesa
-                tr.querySelector("button").addEventListener("click", () => {
-                    if (!confirm("Tem certeza que deseja remover esta despesa?")) return;
-
-                    fetch("/api/remover_lancamento", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: tr.dataset.id })
-                    })
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.success) tr.remove();
-                            else alert("Erro ao remover despesa: " + (data.error || "Erro desconhecido"));
-                        })
-                        .catch(error => {
-                            console.error("Erro ao remover despesa:", error);
-                            alert("Erro de conexão ao remover despesa");
-                        });
+    // ── Carrega cartões ─────────────────────────────────────
+    function carregarCartoes() {
+        fetch("/api/cartoes_disponiveis")
+            .then(r => r.json())
+            .then(data => {
+                selectCartao.innerHTML = '<option value="">Selecione...</option>';
+                cartoesDisponiveis = data.cartoes;
+                data.cartoes.forEach(c => {
+                    const o = document.createElement("option");
+                    o.value = c.id; o.textContent = c.nome; o.dataset.tipo = c.tipo_pagamento;
+                    selectCartao.appendChild(o);
                 });
-            }
-
-            // Carregar categorias APENAS de despesas
-            function carregarCategorias() {
-                fetch("/api/categorias?tipo=despesa")
-                    .then(r => r.json())
-                    .then(data => {
-                        selectCategoria.innerHTML = '<option value="">Selecione...</option>';
-                        data.categorias.forEach(cat => {
-                            const option = document.createElement("option");
-                            option.value = cat.nome;
-                            option.textContent = cat.nome;
-                            selectCategoria.appendChild(option);
-                        });
-                    })
-                    .catch(error => {
-                        console.error("Erro ao carregar categorias:", error);
-                    });
-            }
-
-            // Enviar formulário
-            formDespesas.addEventListener("submit", (e) => {
-                e.preventDefault();
-
-                const descricao = document.getElementById("compra").value.trim();
-                const categoria = selectCategoria.value;
-                const cartaoId = selectCartao.value;
-                const valor = parseFloat(document.getElementById("valor").value);
-                const data = document.getElementById("dataCompra").value;
-                const tipoCobranca = selectTipoCobranca.value;
-                const pagamento = tipoPagamento.value;
-                const parcelas = parcelasInput.value || null;
-                const tipoCompra = selectTipoCompra.value;
-
-                // Validações
-                if (!descricao || !categoria || !cartaoId || !valor || !data) {
-                    alert("Preencha todos os campos obrigatórios");
-                    return;
-                }
-
-                const cartaoSelecionado = cartoesDisponiveis.find(c => c.id == cartaoId);
-                if (!cartaoSelecionado) {
-                    alert("Selecione um cartão válido");
-                    return;
-                }
-
-                // Validações específicas por tipo de cartão
-                if (cartaoSelecionado.tipo_pagamento === 'debito') {
-                    // Débito: sempre à vista, sem parcelas
-                    if (pagamento !== 'avista') {
-                        alert("Cartão de débito deve ser sempre à vista");
-                        return;
-                    }
-                }
-
-                if (pagamento === "parcelado" && (!parcelas || parcelas < 2)) {
-                    alert("Para pagamento parcelado, informe o número de parcelas (mínimo 2)");
-                    return;
-                }
-
-                // Preparar dados para envio
-                const dadosDespesa = {
-                    descricao: descricao,
-                    tipo: "despesa",
-                    valor: valor,
-                    categoria: categoria,
-                    data: data,
-                    tipo_cobranca: tipoCobranca,
-                    pagamento: pagamento,
-                    parcelas: parcelas,
-                    id_cartao: cartaoId,
-                    tipo_compra: tipoCompra
-                };
-
-                console.log("Dados enviados:", dadosDespesa); // Para debug
-
-                fetch("/api/adicionar_lancamento", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(dadosDespesa)
-                })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Usar a data do formulário
-                            adicionarDespesa(data.id, descricao, categoria, cartaoSelecionado.nome, dadosDespesa.data,
-                                tipoCobranca, pagamento, parcelas, tipoCompra, valor);
-                            formDespesas.reset();
-
-                            // Reset dos campos especiais
-                            parcelasInput.disabled = true;
-                            selectTipoCompra.disabled = true;
-                            selectTipoCompra.value = 'credito';
-                            selectTipoCompra.style.backgroundColor = '#e9ecef';
-                            tipoPagamento.disabled = false;
-                            tipoPagamento.style.backgroundColor = '';
-                            selectTipoCobranca.value = 'avulsa';
-                            
-                            // Reset da data para hoje
-                            document.getElementById("dataCompra").value = new Date().toISOString().split('T')[0];
-                        } else {
-                            alert("Erro ao adicionar despesa: " + (data.error || "Erro desconhecido"));
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Erro ao adicionar despesa:", error);
-                        alert("Erro de conexão ao adicionar despesa");
-                    });
             });
+    }
 
-            // Inicializar
-            carregarCategorias();
-            carregarCartoes();
+    // ── Carrega categorias ──────────────────────────────────
+    function carregarCategorias() {
+        fetch("/api/categorias?tipo=despesa")
+            .then(r => r.json())
+            .then(data => {
+                selectCategoria.innerHTML = '<option value="">Selecione...</option>';
+                data.categorias.forEach(c => {
+                    const o = document.createElement("option");
+                    o.value = c.nome; o.textContent = c.nome;
+                    selectCategoria.appendChild(o);
+                });
+            });
+    }
 
-            // Definir data atual como padrão no campo de data
-            document.getElementById("dataCompra").value = new Date().toISOString().split('T')[0];
+    // ── Lógica tipo de pagamento / cartão ───────────────────
+    tipoPagamento.addEventListener("change", () => {
+        const c = cartoesDisponiveis.find(c => c.id == selectCartao.value);
+        if (tipoPagamento.value === "parcelado") {
+            parcelasInput.disabled = false;
+            parcelasInput.placeholder = "Nº parcelas";
+            selectTipoCompra.disabled = true;
+            selectTipoCompra.value = 'credito';
+            selectTipoCompra.style.backgroundColor = '#e9ecef';
+        } else {
+            parcelasInput.disabled = true;
+            parcelasInput.value = "";
+            parcelasInput.placeholder = "—";
+            if (c && c.tipo_pagamento === 'multiplo') {
+                selectTipoCompra.disabled = false;
+                selectTipoCompra.style.backgroundColor = '';
+            } else {
+                selectTipoCompra.disabled = true;
+                selectTipoCompra.style.backgroundColor = '#e9ecef';
+            }
+        }
+    });
 
-            // Carregar despesas existentes
-            const lancamentosExistentes = {{ lancamentos | tojson | default ('[]') | safe }};
-            console.log("Lançamentos existentes:", lancamentosExistentes);
+    selectCartao.addEventListener("change", function () {
+        const c = cartoesDisponiveis.find(c => c.id == this.value);
+        if (!c) {
+            selectTipoCompra.disabled = true; selectTipoCompra.value = 'credito';
+            selectTipoCompra.style.backgroundColor = '#e9ecef';
+            tipoPagamento.disabled = false; tipoPagamento.value = 'avista';
+            parcelasInput.disabled = true; parcelasInput.value = ""; parcelasInput.placeholder = "—";
+            return;
+        }
+        if (c.tipo_pagamento === 'multiplo') {
+            if (tipoPagamento.value !== "parcelado") { selectTipoCompra.disabled = false; selectTipoCompra.style.backgroundColor = ''; }
+            tipoPagamento.disabled = false; tipoPagamento.style.backgroundColor = '';
+        } else {
+            selectTipoCompra.disabled = true; selectTipoCompra.value = c.tipo_pagamento;
+            selectTipoCompra.style.backgroundColor = '#e9ecef';
+            if (c.tipo_pagamento === 'debito') {
+                tipoPagamento.value = 'avista'; tipoPagamento.disabled = true;
+                tipoPagamento.style.backgroundColor = '#e9ecef';
+                parcelasInput.disabled = true; parcelasInput.value = ""; parcelasInput.placeholder = "—";
+            } else {
+                tipoPagamento.disabled = false; tipoPagamento.style.backgroundColor = '';
+            }
+        }
+    });
 
-            lancamentosExistentes.forEach(l => {
-                // Estrutura: [id, descricao, tipo, valor, categoria, cartao_nome, data, pagamento, parcelas, tipo_compra, tipo_cobranca]
-                if (Array.isArray(l)) {
-                    const id = l[0];
-                    const descricao = l[1];
-                    const tipo = l[2];
-                    const valor = l[3];
-                    const categoria = l[4] || "";
-                    const cartao_nome = l[5] || "";
-                    const data = l[6] || new Date().toISOString().split('T')[0];
-                    const pagamento = l[7] || "avista";
-                    const parcelas = l[8] || "-";
-                    const tipo_compra = l[9] || "credito";
-                    const tipo_cobranca = l[10] || "avulsa";
+    // ── Formata data ────────────────────────────────────────
+    function formatarData(d) {
+        if (!d) return '—';
+        try {
+            const dt = new Date(d.includes('T') ? d : d + 'T00:00:00');
+            return isNaN(dt) ? d : dt.toLocaleDateString('pt-BR');
+        } catch { return d; }
+    }
 
-                    if (tipo === "despesa") {
-                        adicionarDespesa(id, descricao, categoria, cartao_nome, data,
-                            tipo_cobranca, pagamento, parcelas, tipo_compra, valor);
-                    }
-                }
+    // ── Adiciona linha na tabela ────────────────────────────
+    // valor = valor TOTAL da compra
+    // A parcela/mês = valor / numParcelas
+    function adicionarDespesa(id, descricao, categoria, cartao, data, pagamento, parcelas, tipoCompra, valorTotal) {
+        const tr = document.createElement("tr");
+        tr.dataset.id = id;
+
+        const n    = parseInt(parcelas) || 1;
+        const vp   = parseFloat(valorTotal) / n;
+        const vtFmt = parseFloat(valorTotal).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+        const vpFmt = vp.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+        const pagBadge  = pagamento === "parcelado"
+            ? '<span class="badge bg-info text-dark">Parcelado</span>'
+            : '<span class="badge bg-light text-dark border">À vista</span>';
+        const tipoBadge = tipoCompra === "credito"
+            ? '<span class="badge bg-primary">Crédito</span>'
+            : '<span class="badge bg-success">Débito</span>';
+        // Para parceladas: mostra "R$ 100,00/mês" com tooltip do total
+        // Para à vista: mostra "R$ 300,00"
+        const valorLabel = pagamento === "parcelado"
+            ? '<span title="Total: R$ ' + vtFmt + '" style="cursor:help">R$ ' + vpFmt + '<small class="text-muted ms-1">/mês</small></span>'
+            : 'R$ ' + vtFmt;
+        const parcelasStr = pagamento === "parcelado" ? n + 'x' : '—';
+
+        tr.innerHTML =
+            '<td>' + descricao + '</td>' +
+            '<td><span class="badge bg-light text-dark border">' + (categoria || '—') + '</span></td>' +
+            '<td>' + (cartao || '—') + '</td>' +
+            '<td>' + formatarData(data) + '</td>' +
+            '<td>' + pagBadge + '</td>' +
+            '<td class="text-center fw-bold">' + parcelasStr + '</td>' +
+            '<td>' + tipoBadge + '</td>' +
+            '<td class="text-end fw-bold text-danger">' + valorLabel + '</td>' +
+            '<td class="text-center"><button class="btn btn-outline-danger btn-sm">Remover</button></td>';
+
+        tr.querySelector("button").addEventListener("click", () => {
+            if (!confirm("Remover esta despesa?")) return;
+            fetch("/api/remover_lancamento", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({id: tr.dataset.id})
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) pag.remover(tr);
+                else alert("Erro: " + (d.error || "desconhecido"));
             });
         });
-    </script>
 
+        pag.adicionar(tr);
+    }
+
+    // ── Submit ──────────────────────────────────────────────
+    formDespesas.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const descricao  = document.getElementById("compra").value.trim();
+        const categoria  = selectCategoria.value;
+        const cartaoId   = selectCartao.value;
+        const valorTotal = parseFloat(document.getElementById("valor").value);
+        const data       = document.getElementById("dataCompra").value;
+        const pagamento  = tipoPagamento.value;
+        const parcelas   = parcelasInput.value || null;
+        const tipoCompra = selectTipoCompra.value;
+        const cartaoSel  = cartoesDisponiveis.find(c => c.id == cartaoId);
+
+        if (!descricao || !categoria || !cartaoId || !valorTotal || !data) {
+            alert("Preencha todos os campos obrigatórios"); return;
+        }
+        if (!cartaoSel) { alert("Selecione um cartão válido"); return; }
+        if (cartaoSel.tipo_pagamento === 'debito' && pagamento !== 'avista') {
+            alert("Cartão de débito deve ser à vista"); return;
+        }
+        if (pagamento === "parcelado" && (!parcelas || parseInt(parcelas) < 2)) {
+            alert("Parcelado exige mínimo 2 parcelas"); return;
+        }
+
+        fetch("/api/adicionar_lancamento", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                descricao, tipo: "despesa", valor: valorTotal,
+                categoria, data, tipo_cobranca: "avulsa",
+                pagamento, parcelas, id_cartao: cartaoId, tipo_compra: tipoCompra
+            })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                adicionarDespesa(d.id, descricao, categoria, cartaoSel.nome,
+                    data, pagamento, parcelas, tipoCompra, valorTotal);
+                formDespesas.reset();
+                parcelasInput.disabled = true; parcelasInput.placeholder = "—";
+                selectTipoCompra.disabled = true; selectTipoCompra.value = 'credito';
+                selectTipoCompra.style.backgroundColor = '#e9ecef';
+                tipoPagamento.disabled = false; tipoPagamento.style.backgroundColor = '';
+                document.getElementById("dataCompra").value = new Date().toISOString().split('T')[0];
+            } else {
+                alert("Erro: " + (d.error || "desconhecido"));
+            }
+        });
+    });
+
+    // ── Inicializa ──────────────────────────────────────────
+    carregarCategorias();
+    carregarCartoes();
+    document.getElementById("dataCompra").value = new Date().toISOString().split('T')[0];
+
+    // Carrega despesas existentes do backend
+    // Estrutura: [id, descricao, tipo, valor, categoria, cartao_nome, data, pagamento, parcelas, tipo_compra, tipo_cobranca]
+    const existentes = {{ lancamentos | tojson | default('[]') | safe }};
+    existentes.forEach(l => {
+        if (!Array.isArray(l)) return;
+        adicionarDespesa(l[0], l[1], l[4] || '', l[5] || '', l[6] || '',
+            l[7] || 'avista', l[8], l[9] || 'credito', l[3]);
+    });
+});
+</script>
+    </div><!-- /sidebar-content -->
+</div><!-- /page-wrapper -->
 </body>
-
 </html>

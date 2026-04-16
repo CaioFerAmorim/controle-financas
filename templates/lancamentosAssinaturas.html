@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Assinaturas - Controle de Finanças</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
+    <style>
+        /* ── Sidebar fixa que acompanha o conteúdo ─────────────── */
+        .page-wrapper {
+            display: flex;
+            min-height: calc(100vh - 98px); /* desconta o header */
+        }
+        .sidebar-nav {
+            width: 200px;
+            min-width: 200px;
+            flex-shrink: 0;
+        }
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #adb5bd;
+            padding: 4px 12px 10px;
+        }
+        .sidebar-nav .nav-link {
+            font-size: 13px;
+            padding: 7px 12px;
+            border-radius: 6px;
+            color: rgba(255,255,255,.8) !important;
+            transition: background .15s, color .15s;
+        }
+        .sidebar-nav .nav-link:hover {
+            background: rgba(255,255,255,.1);
+            color: #fff !important;
+        }
+        .sidebar-nav .nav-link[aria-current="page"] {
+            background: rgba(255,255,255,.15);
+            color: #fff !important;
+            font-weight: 600;
+        }
+        .sidebar-content {
+            flex: 1;
+            min-width: 0;
+            padding: 1.5rem;
+        }
+
+        thead.thead-fin th { background:#1A4D2E; color:#fff; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; padding:10px 12px; border:none; white-space:nowrap; }
+        tbody tr td { font-size:13px; vertical-align:middle; }
+        .pag-info { font-size:12px; color:#6c757d; }
+        .table-wrapper { min-height:320px; }
+    </style>
+</head>
+<body class="bg-light">
+
+<!-- Header -->
+<header class="text-white py-3" style="background-color: #1A4D2E;">
+    <div class="container d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center">
+            <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
+                 alt="Logo" class="me-3" style="width:80px;height:80px;">
+            <div><h1 class="h5 mb-0">Controle de Finanças</h1><small>Gerencie seus gastos</small></div>
+        </div>
+        <nav>
+            <a href="{{ url_for('index') }}"       class="text-white text-decoration-none me-3">Início</a>
+            <a href="{{ url_for('lancamentos') }}" class="text-white text-decoration-none me-3">Lançamentos</a>
+            <a href="{{ url_for('projecoes') }}"   class="text-white text-decoration-none me-3">Projeções</a>
+            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none">Visão Geral</a>
+        </nav>
+    </div>
+</header>
+
+<div class="page-wrapper">
+    <nav class="sidebar-nav bg-dark text-white p-3">
+        <div class="sidebar-title">Lançamentos</div>
+        <ul class="nav flex-column">
+            <li class="nav-item"><a href="{{ url_for('lancamentos') }}"            class="nav-link text-white">Despesas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosAssinaturas') }}" class="nav-link text-white" aria-current="page">Assinaturas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosReceita') }}"     class="nav-link text-white">Receitas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosConta') }}"       class="nav-link text-white">Contas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosCartao') }}"      class="nav-link text-white">Cartões</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosCategorias') }}"  class="nav-link text-white">Categorias</a></li>
+        </ul>
+    </nav>
+    <div class="sidebar-content">
+<!-- Conteúdo -->
+    <div class="container mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white d-flex align-items-center justify-content-between">
+                <span>Assinaturas e Despesas Fixas</span>
+                <small class="opacity-75">Lançadas automaticamente todo mês no dia agendado</small>
+            </div>
+            <div class="card-body">
+
+                <!-- Formulário -->
+                <form id="formAssin" class="mb-4">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Descrição</label>
+                            <input type="text" class="form-control" id="descAssin" placeholder="Ex: Netflix, Academia, Aluguel..." required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Categoria</label>
+                            <select id="catAssin" class="form-select" required>
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Valor (R$)</label>
+                            <input type="number" class="form-control" id="valorAssin" placeholder="0,00" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Cobrado em</label>
+                            <select id="tipoCobradorAssin" class="form-select">
+                                <option value="cartao">Cartão de crédito</option>
+                                <option value="conta">Débito em conta</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3" id="campoCartaoAssin">
+                            <label class="form-label small text-muted mb-1">Cartão</label>
+                            <select id="cartaoAssin" class="form-select">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3" id="campoContaAssin" style="display:none;">
+                            <label class="form-label small text-muted mb-1">Conta</label>
+                            <select id="contaAssin" class="form-select">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Quando cobrar</label>
+                            <select id="modoDiaAssin" class="form-select">
+                                <option value="fixo">Dia fixo do mês</option>
+                                <option value="primeiro_util">1º dia útil</option>
+                                <option value="ultimo_util">Último dia útil</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2" id="campoDiaAssin">
+                            <label class="form-label small text-muted mb-1">Dia</label>
+                            <select id="diaAssin" class="form-select">
+                                <option value="">Dia...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-warning py-2 mb-0 small">
+                                <strong>Cartão:</strong> entra na fatura, não debita a conta diretamente.<br>
+                                <strong>Conta:</strong> desconta do saldo no dia agendado.
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-danger w-100">Adicionar Assinatura</button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Info + paginação -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="pag-info" id="infoAssin">—</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="pag-info mb-0">Linhas:</label>
+                        <select id="ippAssin" class="form-select form-select-sm" style="width:70px;">
+                            <option value="10" selected>10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-wrapper table-responsive">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="thead-fin">
+                            <tr>
+                                <th>Descrição</th>
+                                <th>Categoria</th>
+                                <th>Cobrado em</th>
+                                <th class="text-center">Quando</th>
+                                <th class="text-end">Valor (R$)</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaAssin"></tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-center mt-3">
+                    <nav><ul class="pagination pagination-sm mb-0" id="pagAssin"></ul></nav>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    // ── Paginador ────────────────────────────────────────────
+    function criarPaginador(tbody, selLinhas, ulPag, infoSpan) {
+        let linhas = [], pag = 1;
+        const ipp = () => parseInt(selLinhas.value);
+        const tp  = () => Math.max(1, Math.ceil(linhas.length / ipp()));
+
+        function render() {
+            const total = linhas.length, pg = tp();
+            pag = Math.min(pag, pg);
+            const ini = (pag - 1) * ipp(), fim = Math.min(ini + ipp(), total);
+            linhas.forEach((tr, i) => tr.style.display = (i >= ini && i < fim) ? '' : 'none');
+            if (infoSpan) infoSpan.textContent = total === 0
+                ? 'Nenhum registro'
+                : 'Mostrando ' + (ini + 1) + '\u2013' + fim + ' de ' + total + ' registro' + (total !== 1 ? 's' : '');
+            ulPag.innerHTML = '';
+            let b = Math.max(1, pag - 2), e = Math.min(pg, b + 4);
+            if (e - b < 4) b = Math.max(1, e - 4);
+            const add = (lbl, p, dis, act) => {
+                const li = document.createElement('li');
+                li.className = 'page-item' + (dis ? ' disabled' : '') + (act ? ' active' : '');
+                li.innerHTML = '<button class="page-link">' + lbl + '</button>';
+                if (!dis && !act) li.querySelector('button').onclick = () => { pag = p; render(); };
+                ulPag.appendChild(li);
+            };
+            add('«', 1, pag === 1); add('‹', pag - 1, pag === 1);
+            for (let p = b; p <= e; p++) add(p, p, false, p === pag);
+            add('›', pag + 1, pag === pg); add('»', pg, pag === pg);
+        }
+
+        selLinhas.addEventListener('change', () => { pag = 1; render(); });
+        return {
+            adicionar(tr) { linhas.push(tr); tbody.appendChild(tr); render(); },
+            remover(tr)   { linhas = linhas.filter(l => l !== tr); tr.remove(); render(); }
+        };
+    }
+
+    const pagAssin = criarPaginador(
+        document.getElementById("tabelaAssin"),
+        document.getElementById("ippAssin"),
+        document.getElementById("pagAssin"),
+        document.getElementById("infoAssin")
+    );
+
+    // ── Preenche dias 1-31 ───────────────────────────────────
+    const selDia = document.getElementById("diaAssin");
+    for (let d = 1; d <= 31; d++) {
+        const o = document.createElement("option");
+        o.value = d; o.textContent = 'Dia ' + d;
+        selDia.appendChild(o);
+    }
+
+    // ── Tipo de cobrador (cartão / conta) ────────────────────
+    const selTipoCobrador = document.getElementById("tipoCobradorAssin");
+    const campoCartao     = document.getElementById("campoCartaoAssin");
+    const campoConta      = document.getElementById("campoContaAssin");
+    selTipoCobrador.addEventListener("change", function () {
+        if (this.value === 'cartao') {
+            campoCartao.style.display = ''; campoConta.style.display = 'none';
+        } else {
+            campoCartao.style.display = 'none'; campoConta.style.display = '';
+        }
+    });
+
+    // ── Modo do dia ──────────────────────────────────────────
+    const selModo  = document.getElementById("modoDiaAssin");
+    const campoDia = document.getElementById("campoDiaAssin");
+    selModo.addEventListener("change", function () {
+        campoDia.style.display = this.value === 'fixo' ? '' : 'none';
+    });
+
+    // ── Carrega selects ──────────────────────────────────────
+    function carregarCategorias() {
+        fetch("/api/categorias?tipo=despesa").then(r => r.json()).then(data => {
+            const sel = document.getElementById("catAssin");
+            sel.innerHTML = '<option value="">Selecione...</option>';
+            data.categorias.forEach(c => {
+                const o = document.createElement("option");
+                o.value = c.nome; o.textContent = c.nome;
+                sel.appendChild(o);
+            });
+        });
+    }
+
+    function carregarCartoes() {
+        fetch("/api/cartoes_disponiveis").then(r => r.json()).then(data => {
+            const sel = document.getElementById("cartaoAssin");
+            sel.innerHTML = '<option value="">Selecione...</option>';
+            // Só cartões de crédito e múltiplo para assinaturas no crédito
+            data.cartoes.filter(c => c.tipo_pagamento !== 'debito').forEach(c => {
+                const o = document.createElement("option");
+                o.value = c.id; o.textContent = c.nome;
+                sel.appendChild(o);
+            });
+        });
+    }
+
+    function carregarContas() {
+        fetch("/api/contas").then(r => r.json()).then(data => {
+            const sel = document.getElementById("contaAssin");
+            sel.innerHTML = '<option value="">Selecione...</option>';
+            data.contas.forEach(c => {
+                const o = document.createElement("option");
+                o.value = c.id; o.textContent = c.nome;
+                sel.appendChild(o);
+            });
+        });
+    }
+
+    // ── Adiciona linha ───────────────────────────────────────
+    function addAssinatura(df) {
+        const tr = document.createElement("tr");
+        tr.dataset.id = df.id;
+
+        const vFmt = parseFloat(df.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        const modoLabels = {
+            fixo:          'Dia ' + df.dia_mes,
+            primeiro_util: '1\u00ba dia \u00fatil',
+            ultimo_util:   '\u00daltimo dia \u00fatil'
+        };
+        const quando = modoLabels[df.modo_dia] || ('Dia ' + df.dia_mes);
+
+        const cobradoEm = df.cartao_nome
+            ? '<span class="badge bg-primary">' + df.cartao_nome + '</span>'
+            : '<span class="badge bg-success">' + (df.conta_nome || 'Conta') + '</span>';
+
+        const statusBadge = df.ativa
+            ? '<span class="badge bg-success">Ativa</span>'
+            : '<span class="badge bg-secondary">Pausada</span>';
+
+        const btnPausar = df.ativa
+            ? '<button class="btn btn-warning btn-sm me-1 btn-pausar" data-ativa="0">Pausar</button>'
+            : '<button class="btn btn-success btn-sm me-1 btn-pausar" data-ativa="1">Ativar</button>';
+
+        tr.innerHTML =
+            '<td class="fw-bold">' + df.descricao + '</td>' +
+            '<td><span class="badge bg-light text-dark border">' + (df.categoria || '—') + '</span></td>' +
+            '<td>' + cobradoEm + '</td>' +
+            '<td class="text-center">' + quando + '</td>' +
+            '<td class="text-end fw-bold text-danger">R$ ' + vFmt + '</td>' +
+            '<td class="text-center">' + statusBadge + '</td>' +
+            '<td class="text-center">' + btnPausar +
+            '<button class="btn btn-outline-danger btn-sm btn-remover">Remover</button></td>';
+
+        tr.querySelector(".btn-pausar").addEventListener("click", function () {
+            const novaAtiva = parseInt(this.dataset.ativa);
+            fetch("/api/pausar_despesa_fixa", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({id: df.id, ativa: novaAtiva})
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) { pagAssin.remover(tr); addAssinatura(Object.assign({}, df, {ativa: novaAtiva})); }
+            });
+        });
+
+        tr.querySelector(".btn-remover").addEventListener("click", () => {
+            if (!confirm('Remover "' + df.descricao + '"?')) return;
+            fetch("/api/remover_despesa_fixa", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({id: df.id})
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) pagAssin.remover(tr);
+                else alert("Erro: " + (d.error || "desconhecido"));
+            });
+        });
+
+        pagAssin.adicionar(tr);
+    }
+
+    // ── Submit ───────────────────────────────────────────────
+    document.getElementById("formAssin").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const descricao    = document.getElementById("descAssin").value.trim();
+        const categoria    = document.getElementById("catAssin").value;
+        const valor        = document.getElementById("valorAssin").value;
+        const tipoCobrador = document.getElementById("tipoCobradorAssin").value;
+        const modo_dia     = document.getElementById("modoDiaAssin").value;
+        const dia_mes      = modo_dia === 'fixo' ? (parseInt(document.getElementById("diaAssin").value) || 1) : 1;
+
+        let id_cartao = null, id_conta = null, cartao_nome = null, conta_nome = null;
+
+        if (tipoCobrador === 'cartao') {
+            const sel = document.getElementById("cartaoAssin");
+            id_cartao   = sel.value;
+            cartao_nome = sel.options[sel.selectedIndex].text;
+            if (!id_cartao) { alert("Selecione um cartão"); return; }
+        } else {
+            const sel = document.getElementById("contaAssin");
+            id_conta   = sel.value;
+            conta_nome = sel.options[sel.selectedIndex].text;
+            if (!id_conta) { alert("Selecione uma conta"); return; }
+        }
+
+        if (modo_dia === 'fixo' && !dia_mes) { alert("Selecione o dia do mês"); return; }
+
+        fetch("/api/adicionar_despesa_fixa", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({descricao, categoria, valor, id_cartao, id_conta, dia_mes, modo_dia})
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                addAssinatura({
+                    id: d.id, descricao, categoria, valor,
+                    id_cartao, cartao_nome, id_conta, conta_nome,
+                    dia_mes, modo_dia, ativa: 1
+                });
+                this.reset();
+                selModo.value = 'fixo';
+                campoDia.style.display = '';
+                selTipoCobrador.value = 'cartao';
+                campoCartao.style.display = ''; campoConta.style.display = 'none';
+            } else {
+                alert("Erro: " + (d.error || "desconhecido"));
+            }
+        });
+    });
+
+    // ── Carrega existentes ───────────────────────────────────
+    fetch("/api/despesas_fixas")
+        .then(r => r.json())
+        .then(data => data.despesas_fixas.forEach(df => addAssinatura(df)));
+
+    carregarCategorias();
+    carregarCartoes();
+    carregarContas();
+});
+</script>
+    </div><!-- /sidebar-content -->
+</div><!-- /page-wrapper -->
+</body>
+</html>

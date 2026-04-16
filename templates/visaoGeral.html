@@ -7,6 +7,47 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        /* ── Sidebar fixa que acompanha o conteúdo ─────────────── */
+        .page-wrapper {
+            display: flex;
+            min-height: calc(100vh - 98px); /* desconta o header */
+        }
+        .sidebar-nav {
+            width: 200px;
+            min-width: 200px;
+            flex-shrink: 0;
+        }
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #adb5bd;
+            padding: 4px 12px 10px;
+        }
+        .sidebar-nav .nav-link {
+            font-size: 13px;
+            padding: 7px 12px;
+            border-radius: 6px;
+            color: rgba(255,255,255,.8) !important;
+            transition: background .15s, color .15s;
+        }
+        .sidebar-nav .nav-link:hover {
+            background: rgba(255,255,255,.1);
+            color: #fff !important;
+        }
+        .sidebar-nav .nav-link[aria-current="page"] {
+            background: rgba(255,255,255,.15);
+            color: #fff !important;
+            font-weight: 600;
+        }
+        .sidebar-content {
+            flex: 1;
+            min-width: 0;
+            padding: 1.5rem;
+        }
+    </style>
 </head>
 <body class="bg-light">
 
@@ -30,7 +71,20 @@
     </div>
 </header>
 
-<div class="container mt-4">
+<div class="page-wrapper">
+    <nav class="sidebar-nav bg-dark text-white p-3">
+        <div class="sidebar-title">Lançamentos</div>
+        <ul class="nav flex-column">
+            <li class="nav-item"><a href="{{ url_for('lancamentos') }}"            class="nav-link text-white">Despesas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosAssinaturas') }}" class="nav-link text-white">Assinaturas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosReceita') }}"     class="nav-link text-white">Receitas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosConta') }}"       class="nav-link text-white">Contas</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosCartao') }}"      class="nav-link text-white">Cartões</a></li>
+            <li class="nav-item"><a href="{{ url_for('lancamentosCategorias') }}"  class="nav-link text-white">Categorias</a></li>
+        </ul>
+    </nav>
+    <div class="sidebar-content">
+<div class="container-fluid">
     <h4 class="mb-4"><i class="bi bi-bar-chart-line me-2 text-primary"></i>Visão Geral</h4>
 
     <!-- Saldo por conta -->
@@ -172,5 +226,7 @@
     {% endif %}
 </script>
 
+    </div><!-- /sidebar-content -->
+</div><!-- /page-wrapper -->
 </body>
 </html>
