@@ -146,7 +146,8 @@
                     </div>
                 </form>
 
-                <!-- Info + paginação -->
+                <!-- Toolbar de filtros + paginação -->
+                <div id="toolbarDespesas"></div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="pag-info" id="infoDespesas">—</span>
                     <div class="d-flex align-items-center gap-2">
@@ -161,7 +162,7 @@
 
                 <div class="table-wrapper table-responsive">
                     <table class="table table-striped table-hover mb-0">
-                        <thead class="thead-fin">
+                        <thead class="thead-fin" id="theadDespesas">
                             <tr>
                                 <th>Descrição</th>
                                 <th>Categoria</th>
@@ -225,12 +226,25 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
-    const pag = criarPaginador(
-        document.getElementById("tabelaDespesas"),
-        document.getElementById("ippDespesas"),
-        document.getElementById("pagDespesas"),
-        document.getElementById("infoDespesas")
-    );
+    const pag = new TabelaManager({
+        tbody:     document.getElementById("tabelaDespesas"),
+        thead:     document.getElementById("theadDespesas"),
+        toolbar:   document.getElementById("toolbarDespesas"),
+        selLinhas: document.getElementById("ippDespesas"),
+        ulPag:     document.getElementById("pagDespesas"),
+        infoSpan:  document.getElementById("infoDespesas"),
+        colunas: [
+            { chave: "descricao", tipo: "texto",  label: "Descrição",  opcoes: false },
+            { chave: "categoria", tipo: "texto",  label: "Categoria",  opcoes: true  },
+            { chave: "cartao",    tipo: "texto",  label: "Cartão",     opcoes: true  },
+            { chave: "data",      tipo: "data",   label: "Data",       opcoes: false },
+            { chave: "pagamento", tipo: "texto",  label: "Pagamento",  opcoes: true  },
+            { chave: "parcelas",  tipo: "numero", label: "Parcelas",   opcoes: false },
+            { chave: "tipo",      tipo: "texto",  label: "Tipo",       opcoes: true  },
+            { chave: "valor",     tipo: "numero", label: "Valor/Mês",  opcoes: false },
+            { chave: "acoes",     tipo: "acoes",  label: "Ações",      opcoes: false },
+        ]
+    });
 
     // ── Referências ─────────────────────────────────────────
     const formDespesas    = document.getElementById("formDespesas");
@@ -377,7 +391,16 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        pag.adicionar(tr);
+        pag.adicionar(tr, {
+            descricao: descricao,
+            categoria: categoria || "",
+            cartao:    cartao || "",
+            data:      data || "",
+            pagamento: pagamento === "parcelado" ? "Parcelado" : "À vista",
+            parcelas:  parseInt(parcelas) || 1,
+            tipo:      tipoCompra === "credito" ? "Crédito" : "Débito",
+            valor:     parseFloat(valorTotal) / (parseInt(parcelas) || 1),
+        });
     }
 
     // ── Submit ──────────────────────────────────────────────
@@ -448,5 +471,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
     </div><!-- /sidebar-content -->
 </div><!-- /page-wrapper -->
+
+<script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
 </body>
 </html>

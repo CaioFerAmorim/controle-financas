@@ -125,6 +125,7 @@
                     </div>
                 </form>
 
+                <div id="toolbarAvulsa"></div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="pag-info" id="infoAvulsa">—</span>
                     <div class="d-flex align-items-center gap-2">
@@ -136,7 +137,7 @@
                 </div>
                 <div class="table-wrapper table-responsive">
                     <table class="table table-striped table-hover mb-0">
-                        <thead class="thead-fin">
+                        <thead class="thead-fin" id="theadAvulsa">
                             <tr>
                                 <th>Descrição</th><th>Categoria</th><th>Conta</th>
                                 <th class="text-end">Valor (R$)</th><th class="text-center">Ações</th>
@@ -199,6 +200,7 @@
                     O crédito é gerado automaticamente no dia escolhido de cada mês ao iniciar o servidor.
                 </div>
 
+                <div id="toolbarFixa"></div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="pag-info" id="infoFixa">—</span>
                     <div class="d-flex align-items-center gap-2">
@@ -268,8 +270,32 @@ document.addEventListener("DOMContentLoaded", function () {
         };
     }
 
-    const pagAvulsa = criarPaginador(document.getElementById("tabelaAvulsas"), document.getElementById("ippAvulsa"), document.getElementById("pagAvulsa"), document.getElementById("infoAvulsa"));
-    const pagFixa   = criarPaginador(document.getElementById("tabelaFixas"),   document.getElementById("ippFixa"),   document.getElementById("pagFixa"),   document.getElementById("infoFixa"));
+    const pagAvulsa = new TabelaManager({
+        tbody: document.getElementById("tabelaAvulsas"), thead: document.getElementById("theadAvulsa"),
+        toolbar: document.getElementById("toolbarAvulsa"), selLinhas: document.getElementById("ippAvulsa"),
+        ulPag: document.getElementById("pagAvulsa"), infoSpan: document.getElementById("infoAvulsa"),
+        colunas: [
+            { chave: "descricao", tipo: "texto",  label: "Descrição", opcoes: false },
+            { chave: "categoria", tipo: "texto",  label: "Categoria", opcoes: true  },
+            { chave: "conta",     tipo: "texto",  label: "Conta",     opcoes: true  },
+            { chave: "valor",     tipo: "numero", label: "Valor",     opcoes: false },
+            { chave: "acoes",     tipo: "acoes",  label: "Ações",     opcoes: false },
+        ]
+    });
+    const pagFixa = new TabelaManager({
+        tbody: document.getElementById("tabelaFixas"), thead: document.getElementById("theadFixa"),
+        toolbar: document.getElementById("toolbarFixa"), selLinhas: document.getElementById("ippFixa"),
+        ulPag: document.getElementById("pagFixa"), infoSpan: document.getElementById("infoFixa"),
+        colunas: [
+            { chave: "descricao", tipo: "texto",  label: "Descrição", opcoes: false },
+            { chave: "categoria", tipo: "texto",  label: "Categoria", opcoes: true  },
+            { chave: "conta",     tipo: "texto",  label: "Conta",     opcoes: true  },
+            { chave: "quando",    tipo: "texto",  label: "Quando",    opcoes: true  },
+            { chave: "valor",     tipo: "numero", label: "Valor",     opcoes: false },
+            { chave: "status",    tipo: "texto",  label: "Status",    opcoes: true  },
+            { chave: "acoes",     tipo: "acoes",  label: "Ações",     opcoes: false },
+        ]
+    });
 
     // ── Selects compartilhados ──────────────────────────────
     function carregarCategorias() {
@@ -320,7 +346,12 @@ document.addEventListener("DOMContentLoaded", function () {
             fetch("/api/remover_lancamento", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) })
                 .then(r=>r.json()).then(d => { if(d.success) pagAvulsa.remover(tr); else alert("Erro: "+(d.error||"")); });
         });
-        pagAvulsa.adicionar(tr);
+        pagAvulsa.adicionar(tr, {
+            descricao: descricao,
+            categoria: categoria || "",
+            conta:     conta_nome || "",
+            valor:     parseFloat(valor),
+        });
     }
 
     document.getElementById("formAvulsa").addEventListener("submit", function(e) {
@@ -377,7 +408,14 @@ document.addEventListener("DOMContentLoaded", function () {
             fetch("/api/remover_receita_fixa", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:rf.id}) })
                 .then(r=>r.json()).then(d => { if(d.success) pagFixa.remover(tr); else alert("Erro: "+(d.error||"")); });
         });
-        pagFixa.adicionar(tr);
+        pagFixa.adicionar(tr, {
+            descricao: rf.descricao,
+            categoria: rf.categoria || "",
+            conta:     rf.conta_nome || "",
+            quando:    quandoLabel,
+            valor:     parseFloat(rf.valor),
+            status:    rf.ativa ? "Ativa" : "Pausada",
+        });
     }
 
     document.getElementById("formFixa").addEventListener("submit", function(e) {
@@ -414,5 +452,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
     </div><!-- /sidebar-content -->
 </div><!-- /page-wrapper -->
+
+<script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
 </body>
 </html>

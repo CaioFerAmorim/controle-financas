@@ -158,6 +158,7 @@
                 </form>
 
                 <!-- Info + paginação -->
+                <div id="toolbarAssin"></div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="pag-info" id="infoAssin">—</span>
                     <div class="d-flex align-items-center gap-2">
@@ -172,7 +173,7 @@
 
                 <div class="table-wrapper table-responsive">
                     <table class="table table-striped table-hover mb-0">
-                        <thead class="thead-fin">
+                        <thead class="thead-fin" id="theadAssin">
                             <tr>
                                 <th>Descrição</th>
                                 <th>Categoria</th>
@@ -234,12 +235,23 @@ document.addEventListener("DOMContentLoaded", function () {
         };
     }
 
-    const pagAssin = criarPaginador(
-        document.getElementById("tabelaAssin"),
-        document.getElementById("ippAssin"),
-        document.getElementById("pagAssin"),
-        document.getElementById("infoAssin")
-    );
+    const pagAssin = new TabelaManager({
+        tbody:     document.getElementById("tabelaAssin"),
+        thead:     document.getElementById("theadAssin"),
+        toolbar:   document.getElementById("toolbarAssin"),
+        selLinhas: document.getElementById("ippAssin"),
+        ulPag:     document.getElementById("pagAssin"),
+        infoSpan:  document.getElementById("infoAssin"),
+        colunas: [
+            { chave: "descricao",  tipo: "texto",  label: "Descrição",  opcoes: false },
+            { chave: "categoria",  tipo: "texto",  label: "Categoria",  opcoes: true  },
+            { chave: "cobrado_em", tipo: "texto",  label: "Cobrado em", opcoes: true  },
+            { chave: "quando",     tipo: "texto",  label: "Quando",     opcoes: true  },
+            { chave: "valor",      tipo: "numero", label: "Valor",      opcoes: false },
+            { chave: "status",     tipo: "texto",  label: "Status",     opcoes: true  },
+            { chave: "acoes",      tipo: "acoes",  label: "Ações",      opcoes: false },
+        ]
+    });
 
     // ── Preenche dias 1-31 ───────────────────────────────────
     const selDia = document.getElementById("diaAssin");
@@ -368,7 +380,14 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
 
-        pagAssin.adicionar(tr);
+        pagAssin.adicionar(tr, {
+            descricao:  df.descricao,
+            categoria:  df.categoria || "",
+            cobrado_em: df.cartao_nome || df.conta_nome || "",
+            quando:     quando,
+            valor:      parseFloat(df.valor),
+            status:     df.ativa ? "Ativa" : "Pausada",
+        });
     }
 
     // ── Submit ───────────────────────────────────────────────
@@ -434,5 +453,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
     </div><!-- /sidebar-content -->
 </div><!-- /page-wrapper -->
+
+<script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
 </body>
 </html>
