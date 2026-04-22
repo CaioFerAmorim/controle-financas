@@ -436,6 +436,157 @@ def gastos_categoria_mes(ano: int, mes: int, conn, limit: int = 5) -> list:
     return resultado[:limit]
 
 
+
+def dashboard_por_cartao(cartao_id: int) -> dict:
+    """
+    Calcula todos os dados do dashboard filtrados por um cartão específico.
+    Retorna o mesmo formato do dashboard geral para o JS poder reutilizar
+    a mesma lógica de renderização.
+    """
+    hoje = date.today()
+    mes_str = hoje.strftime('%Y-%m')
+
+    with get_db() as conn:
+        c = conn.cursor()
+
+        # Info do cartão
+        c.execute("""
+            SELECT ca.nome, ca.data_vencimento, ca.dias_fechamento, ca.limite,
+                   ca.tipo_pagamento
+            FROM cartoes ca WHERE ca.id = ?
+        """, (cartao_id,))
+        row = c.fetchone()
+        if not row:
+            return None
+        nome_cartao, dia_venc, dias_fech, limite, tipo_pag = row
+
+        # Período da fatura atual deste cartão
+        fatura_atual = 0.0
+        inicio_f = fim_f = venc_f = None
+        if dia_venc and dias_fech:
+            inicio_f, fim_f, venc_f = periodo_fatura_atual(dia_venc, dias_fech)
+
+            # À vista na fatura atual
+            c.execute("""
+                SELECT COALESCE(SUM(valor), 0) FROM transacoes
+                WHERE tipo='despesa' AND tipo_compra='credito' AND pagamento='avista'
+                  AND id_cartao=? AND data_lancamento BETWEEN ? AND ?
+            """, (cartao_id, inicio_f.isoformat(), fim_f.isoformat()))
+            fatura_atual += c.fetchone()[0]
+
+            # Parceladas — só a parcela do período
+            c.execute("""
+                SELECT valor, parcelas, data_lancamento FROM transacoes
+                WHERE tipo='despesa' AND tipo_compra='credito' AND pagamento='parcelado'
+                  AND parcelas >= 2 AND id_cartao=?
+            """, (cartao_id,))
+            for vt, parc, ds in c.fetchall():
+                try:
+                    dc = date.fromisoformat(str(ds)[:10])
+                except Exception:
+                    continue
+                fatura_atual += valor_parcela_na_fatura(vt, parc, dc, inicio_f, fim_f)
+
+        fatura_atual = round(fatura_atual, 2)
+
+        # Gastos por categoria deste cartão no mês atual (parcelas corretas)
+        acum = {}
+        c.execute("""
+            SELECT COALESCE(categoria, 'Sem categoria'), valor, pagamento, parcelas, data_lancamento
+            FROM transacoes
+            WHERE tipo='despesa' AND id_cartao=?
+              AND (categoria IS NULL OR (categoria NOT LIKE '_rf_%' AND categoria NOT LIKE '_df_%'))
+        """, (cartao_id,))
+        for cat, vt, pag, parc, ds in c.fetchall():
+            try:
+                dc = date.fromisoformat(str(ds)[:10])
+            except Exception:
+                continue
+            if pag == 'avista':
+                if dc.year == hoje.year and dc.month == hoje.month:
+                    acum[cat] = acum.get(cat, 0) + vt
+            else:
+                n = parc or 1
+                vp = round(vt / n, 2)
+                for p in range(n):
+                    mp = dc + relativedelta(months=p)
+                    if mp.year == hoje.year and mp.month == hoje.month:
+                        acum[cat] = acum.get(cat, 0) + vp
+                        break
+
+        gastos_categoria = sorted(
+            [{'nome': k, 'total': round(v, 2)} for k, v in acum.items()],
+            key=lambda x: x['total'], reverse=True
+        )[:5]
+
+        # Últimas 10 transações deste cartão
+        c.execute("""
+            SELECT t.id, t.descricao, t.tipo, t.valor, t.categoria,
+                   ca.nome AS cartao_nome, t.data_lancamento, t.pagamento, t.parcelas
+            FROM transacoes t
+            LEFT JOIN cartoes ca ON t.id_cartao = ca.id
+            WHERE t.id_cartao = ? AND t.tipo = 'despesa'
+            ORDER BY t.data_lancamento DESC, t.id DESC LIMIT 10
+        """, (cartao_id,))
+        transacoes = []
+        for r in c.fetchall():
+            d = dict(r)
+            # Mostra valor da parcela se parcelado
+            if d['pagamento'] == 'parcelado' and d['parcelas']:
+                d['valor_exibido'] = round(d['valor'] / d['parcelas'], 2)
+                d['valor_total']   = d['valor']
+            else:
+                d['valor_exibido'] = d['valor']
+                d['valor_total']   = d['valor']
+            transacoes.append(d)
+
+        # Histórico 6 meses deste cartão (gastos por mês, parcelas corretas)
+        historico = []
+        meses_pt = {1:'Jan',2:'Fev',3:'Mar',4:'Abr',5:'Mai',6:'Jun',
+                    7:'Jul',8:'Ago',9:'Set',10:'Out',11:'Nov',12:'Dez'}
+        for delta in range(5, -1, -1):
+            ref = hoje - relativedelta(months=delta)
+            # Busca todas as despesas do cartão para calcular o mês correto
+            c.execute("""
+                SELECT valor, pagamento, parcelas, data_lancamento FROM transacoes
+                WHERE tipo='despesa' AND id_cartao=?
+                  AND (categoria IS NULL OR (categoria NOT LIKE '_rf_%' AND categoria NOT LIKE '_df_%'))
+            """, (cartao_id,))
+            desp_mes = 0.0
+            for vt, pag, parc, ds in c.fetchall():
+                try:
+                    dc = date.fromisoformat(str(ds)[:10])
+                except Exception:
+                    continue
+                if pag == 'avista':
+                    if dc.year == ref.year and dc.month == ref.month:
+                        desp_mes += vt
+                else:
+                    n = parc or 1
+                    vp = round(vt / n, 2)
+                    for p in range(n):
+                        mp = dc + relativedelta(months=p)
+                        if mp.year == ref.year and mp.month == ref.month:
+                            desp_mes += vp
+                            break
+            historico.append({
+                'label':    f"{meses_pt[ref.month]}/{ref.year}",
+                'despesas': round(desp_mes, 2),
+            })
+
+    return {
+        'nome_cartao':      nome_cartao,
+        'tipo_pagamento':   tipo_pag,
+        'limite':           limite,
+        'fatura_atual':     fatura_atual,
+        'periodo_inicio':   inicio_f.strftime('%d/%m/%Y') if inicio_f else None,
+        'periodo_fim':      fim_f.strftime('%d/%m/%Y')    if fim_f    else None,
+        'vencimento':       venc_f.strftime('%d/%m/%Y')   if venc_f   else None,
+        'gastos_categoria': gastos_categoria,
+        'transacoes':       transacoes,
+        'historico':        historico,
+    }
+
 def projecao_mensal(n_meses: int = 3):
     """
     Projeção dos próximos n_meses.
@@ -525,6 +676,16 @@ def index():
     # - despesas fixas de crédito ainda não geradas este mês
     disponivel_mes = round(saldo_total + rec_pendentes - fatura_atual - desp_pendentes, 2)
 
+    # Cartões de crédito para as abas
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, nome FROM cartoes
+            WHERE tipo_pagamento IN ('credito','multiplo')
+            ORDER BY nome
+        """)
+        cartoes_credito = [{'id': r[0], 'nome': r[1]} for r in c.fetchall()]
+
     return render_template('index.html',
         transacoes=transacoes,
         saldo_total=saldo_total,
@@ -533,6 +694,7 @@ def index():
         disponivel_mes=disponivel_mes,
         proximas_faturas=projecao_mensal(3),
         gastos_por_categoria=gastos_por_categoria,
+        cartoes_credito=cartoes_credito,
     )
 
 
@@ -559,6 +721,15 @@ def dashboard_data():
         'gasto_credito':  fatura_atual,
         'disponivel_mes': round(saldo_total + rec_pendentes - fatura_atual - desp_pendentes, 2),
     })
+
+
+@app.route('/api/dashboard_cartao/<int:cartao_id>')
+def api_dashboard_cartao(cartao_id):
+    """Retorna todos os dados do dashboard filtrados por um cartão."""
+    dados = dashboard_por_cartao(cartao_id)
+    if dados is None:
+        return jsonify({'success': False, 'error': 'Cartão não encontrado'}), 404
+    return jsonify({'success': True, **dados})
 
 
 # ================================================================
