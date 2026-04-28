@@ -271,29 +271,29 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const pagAvulsa = new TabelaManager({
-        tbody: document.getElementById("tabelaAvulsas"), thead: document.getElementById("theadAvulsa"),
-        toolbar: document.getElementById("toolbarAvulsa"), selLinhas: document.getElementById("ippAvulsa"),
-        ulPag: document.getElementById("pagAvulsa"), infoSpan: document.getElementById("infoAvulsa"),
+        tbody: document.getElementById('tabelaAvulsas'), thead: document.getElementById('theadAvulsa'),
+        toolbar: document.getElementById('toolbarAvulsa'), selLinhas: document.getElementById('ippAvulsa'),
+        ulPag: document.getElementById('pagAvulsa'), infoSpan: document.getElementById('infoAvulsa'),
         colunas: [
-            { chave: "descricao", tipo: "texto",  label: "Descrição", opcoes: false },
-            { chave: "categoria", tipo: "texto",  label: "Categoria", opcoes: true  },
-            { chave: "conta",     tipo: "texto",  label: "Conta",     opcoes: true  },
-            { chave: "valor",     tipo: "numero", label: "Valor",     opcoes: false },
-            { chave: "acoes",     tipo: "acoes",  label: "Ações",     opcoes: false },
+            { chave: 'descricao', tipo: 'texto',  label: 'Descrição'           },
+            { chave: 'categoria', tipo: 'texto',  label: 'Categoria', opcoes: true },
+            { chave: 'conta',     tipo: 'texto',  label: 'Conta',     opcoes: true },
+            { chave: 'valor',     tipo: 'numero', label: 'Valor'               },
+            { chave: 'acoes',     tipo: 'acoes',  label: 'Ações'               },
         ]
     });
     const pagFixa = new TabelaManager({
-        tbody: document.getElementById("tabelaFixas"), thead: document.getElementById("theadFixa"),
-        toolbar: document.getElementById("toolbarFixa"), selLinhas: document.getElementById("ippFixa"),
-        ulPag: document.getElementById("pagFixa"), infoSpan: document.getElementById("infoFixa"),
+        tbody: document.getElementById('tabelaFixas'), thead: document.getElementById('theadFixa'),
+        toolbar: document.getElementById('toolbarFixa'), selLinhas: document.getElementById('ippFixa'),
+        ulPag: document.getElementById('pagFixa'), infoSpan: document.getElementById('infoFixa'),
         colunas: [
-            { chave: "descricao", tipo: "texto",  label: "Descrição", opcoes: false },
-            { chave: "categoria", tipo: "texto",  label: "Categoria", opcoes: true  },
-            { chave: "conta",     tipo: "texto",  label: "Conta",     opcoes: true  },
-            { chave: "quando",    tipo: "texto",  label: "Quando",    opcoes: true  },
-            { chave: "valor",     tipo: "numero", label: "Valor",     opcoes: false },
-            { chave: "status",    tipo: "texto",  label: "Status",    opcoes: true  },
-            { chave: "acoes",     tipo: "acoes",  label: "Ações",     opcoes: false },
+            { chave: 'descricao', tipo: 'texto',  label: 'Descrição'           },
+            { chave: 'categoria', tipo: 'texto',  label: 'Categoria', opcoes: true },
+            { chave: 'conta',     tipo: 'texto',  label: 'Conta',     opcoes: true },
+            { chave: 'quando',    tipo: 'texto',  label: 'Quando',    opcoes: true },
+            { chave: 'valor',     tipo: 'numero', label: 'Valor'               },
+            { chave: 'status',    tipo: 'texto',  label: 'Status',    opcoes: true },
+            { chave: 'acoes',     tipo: 'acoes',  label: 'Ações'               },
         ]
     });
 
