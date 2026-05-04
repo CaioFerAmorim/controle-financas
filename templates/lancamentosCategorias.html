@@ -114,8 +114,7 @@
                         </div>
                         <div class="table-wrapper table-responsive">
                             <table class="table table-striped table-hover mb-0">
-                                <thead class="thead-fin">
-                                    <tr><th>Nome</th><th class="text-center">Ações</th></tr>
+                                <thead class="thead-fin" id="theadCatDesp">
                                 </thead>
                                 <tbody id="tabelaCatDesp"></tbody>
                             </table>
@@ -155,8 +154,7 @@
                         </div>
                         <div class="table-wrapper table-responsive">
                             <table class="table table-striped table-hover mb-0">
-                                <thead class="thead-fin">
-                                    <tr><th>Nome</th><th class="text-center">Ações</th></tr>
+                                <thead class="thead-fin" id="theadCatRec">
                                 </thead>
                                 <tbody id="tabelaCatRec"></tbody>
                             </table>
@@ -195,21 +193,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const pagDesp = new TabelaManager({
-        tbody: document.getElementById("tabelaCatDesp"), thead: document.getElementById("theadCatDesp"),
-        toolbar: document.getElementById("toolbarCatDesp"), selLinhas: document.getElementById("ippCatDesp"),
-        ulPag: document.getElementById("pagCatDesp"), infoSpan: document.getElementById("infoCatDesp"),
+        tbody: document.getElementById('tabelaCatDesp'), thead: document.getElementById('theadCatDesp'),
+        toolbar: document.getElementById('toolbarCatDesp'), selLinhas: document.getElementById('ippCatDesp'),
+        ulPag: document.getElementById('pagCatDesp'), infoSpan: document.getElementById('infoCatDesp'),
         colunas: [
-            { chave: "nome",  tipo: "texto", label: "Nome",  opcoes: false },
-            { chave: "acoes", tipo: "acoes", label: "Ações", opcoes: false },
+            { chave: 'nome',  tipo: 'texto', label: 'Nome'  },
+            { chave: 'acoes', tipo: 'acoes', label: 'Ações' },
         ]
     });
     const pagRec = new TabelaManager({
-        tbody: document.getElementById("tabelaCatRec"), thead: document.getElementById("theadCatRec"),
-        toolbar: document.getElementById("toolbarCatRec"), selLinhas: document.getElementById("ippCatRec"),
-        ulPag: document.getElementById("pagCatRec"), infoSpan: document.getElementById("infoCatRec"),
+        tbody: document.getElementById('tabelaCatRec'), thead: document.getElementById('theadCatRec'),
+        toolbar: document.getElementById('toolbarCatRec'), selLinhas: document.getElementById('ippCatRec'),
+        ulPag: document.getElementById('pagCatRec'), infoSpan: document.getElementById('infoCatRec'),
         colunas: [
-            { chave: "nome",  tipo: "texto", label: "Nome",  opcoes: false },
-            { chave: "acoes", tipo: "acoes", label: "Ações", opcoes: false },
+            { chave: 'nome',  tipo: 'texto', label: 'Nome'  },
+            { chave: 'acoes', tipo: 'acoes', label: 'Ações' },
         ]
     });
 
