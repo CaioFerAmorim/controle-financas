@@ -65,7 +65,14 @@
             <a href="{{ url_for('index') }}"            class="text-white text-decoration-none me-3">Início</a>
             <a href="{{ url_for('lancamentos') }}"      class="text-white text-decoration-none me-3">Lançamentos</a>
             <a href="{{ url_for('projecoes') }}"        class="text-white text-decoration-none me-3">Projeções</a>
-            <a href="{{ url_for('visaoGeral') }}"       class="text-white text-decoration-none">Visão Geral</a>
+            <a href="{{ url_for('visaoGeral') }}"       class="text-white text-decoration-none me-3">Visão Geral</a>
+            {% if session.user_role == 'admin' %}
+            <a href="{{ url_for('admin') }}" class="text-white text-decoration-none me-3" title="Admin">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="opacity-75"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
+            </a>
+            {% endif %}
+            <span class="text-white opacity-75 small me-2">{{ session.user_nome }}</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light py-1 px-2" style="font-size:12px;">Sair</a>
         </nav>
     </div>
 </header>

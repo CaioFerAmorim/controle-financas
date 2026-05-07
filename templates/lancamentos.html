@@ -66,7 +66,14 @@
             <a href="{{ url_for('index') }}"       class="text-white text-decoration-none me-3">Início</a>
             <a href="{{ url_for('lancamentos') }}" class="text-white text-decoration-none me-3">Lançamentos</a>
             <a href="{{ url_for('projecoes') }}"   class="text-white text-decoration-none me-3">Projeções</a>
-            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none">Visão Geral</a>
+            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none me-3">Visão Geral</a>
+            {% if session.user_role == 'admin' %}
+            <a href="{{ url_for('admin') }}" class="text-white text-decoration-none me-3" title="Admin">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="opacity-75"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
+            </a>
+            {% endif %}
+            <span class="text-white opacity-75 small me-2">{{ session.user_nome }}</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light py-1 px-2" style="font-size:12px;">Sair</a>
         </nav>
     </div>
 </header>
@@ -222,6 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selLinhas: document.getElementById("ippDespesas"),
         ulPag:     document.getElementById("pagDespesas"),
         infoSpan:  document.getElementById("infoDespesas"),
+        onEditar:  (meta, tr) => abrirEdicao(meta, tr),
         colunas: [
             { chave: 'descricao', tipo: 'texto',  label: 'Descrição'  },
             { chave: 'categoria', tipo: 'texto',  label: 'Categoria',  opcoes: true },
@@ -443,6 +451,44 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    const editor = new EditorPanel('editorDespesas');
+
+    function abrirEdicao(meta, tr) {
+        fetch('/api/categorias?tipo=despesa').then(r => r.json()).then(catData => {
+            const cats = catData.categorias.map(c => c.nome);
+            editor.abrir({
+                titulo: 'Editar Despesa',
+                campos: [
+                    { chave: 'descricao', tipo: 'text',   label: 'Descrição',        valor: meta.descricao, required: true },
+                    { chave: 'categoria', tipo: 'select', label: 'Categoria',         valor: meta.categoria, opcoes: cats },
+                    { chave: 'data',      tipo: 'date',   label: 'Data',              valor: meta.data },
+                    { chave: 'valor',     tipo: 'number', label: 'Valor Total (R$)',  valor: meta.valor * (parseInt(meta.parcelas) || 1),
+                      min: 0.01, step: 0.01, required: true },
+                    { chave: 'parcelas',  tipo: 'number', label: 'Parcelas (vazio = à vista)',
+                      valor: meta.parcelas > 1 ? meta.parcelas : '',
+                      min: 2, step: 1, placeholder: 'Deixe vazio para à vista' },
+                ],
+                onSalvar: (dados) => {
+                    const novoValor    = parseFloat(dados.valor);
+                    const novasParcelas = dados.parcelas ? parseInt(dados.parcelas) : null;
+                    return apiAtualizar('/api/atualizar_lancamento', {
+                        id: tr.dataset.id, descricao: dados.descricao,
+                        categoria: dados.categoria, data: dados.data,
+                        valor: novoValor, parcelas: novasParcelas,
+                    }).then(ok => {
+                        if (!ok) return false;
+                        pag.remover(tr);
+                        adicionarDespesa(tr.dataset.id, dados.descricao, dados.categoria,
+                            meta.cartao, dados.data,
+                            novasParcelas ? 'parcelado' : 'avista',
+                            novasParcelas, meta.tipo, novoValor);
+                        return true;
+                    });
+                }
+            });
+        });
+    }
+
     // ── Inicializa ──────────────────────────────────────────
     carregarCategorias();
     carregarCartoes();
@@ -462,5 +508,6 @@ document.addEventListener("DOMContentLoaded", () => {
 </div><!-- /page-wrapper -->
 
 <script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editar-utils.js') }}"></script>
 </body>
 </html>

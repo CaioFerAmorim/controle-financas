@@ -74,7 +74,14 @@
             <a href="{{ url_for('index') }}"       class="text-white text-decoration-none me-3">Início</a>
             <a href="{{ url_for('lancamentos') }}" class="text-white text-decoration-none me-3">Lançamentos</a>
             <a href="{{ url_for('projecoes') }}"   class="text-white text-decoration-none me-3">Projeções</a>
-            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none">Visão Geral</a>
+            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none me-3">Visão Geral</a>
+            {% if session.user_role == 'admin' %}
+            <a href="{{ url_for('admin') }}" class="text-white text-decoration-none me-3" title="Admin">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="opacity-75"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
+            </a>
+            {% endif %}
+            <span class="text-white opacity-75 small me-2">{{ session.user_nome }}</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light py-1 px-2" style="font-size:12px;">Sair</a>
         </nav>
     </div>
 </header>
@@ -428,6 +435,71 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 
+
+    const editorAvulsa = new EditorPanel('editorAvulsa');
+    const editorFixa   = new EditorPanel('editorFixa');
+
+    function abrirEdicaoAvulsa(meta, tr) {
+        fetch('/api/categorias?tipo=receita').then(r => r.json()).then(catData => {
+            const cats = catData.categorias.map(c => c.nome);
+            editorAvulsa.abrir({
+                titulo: 'Editar Receita',
+                campos: [
+                    { chave: 'descricao', tipo: 'text',   label: 'Descrição', valor: meta.descricao, required: true },
+                    { chave: 'categoria', tipo: 'select', label: 'Categoria', valor: meta.categoria, opcoes: cats },
+                    { chave: 'valor',     tipo: 'number', label: 'Valor (R$)', valor: meta.valor, min: 0.01, step: 0.01, required: true },
+                ],
+                onSalvar: (dados) => apiAtualizar('/api/atualizar_lancamento', {
+                    id: tr.dataset.id, descricao: dados.descricao,
+                    categoria: dados.categoria, valor: parseFloat(dados.valor),
+                }).then(ok => {
+                    if (!ok) return false;
+                    pagAvulsa.remover(tr);
+                    addAvulsa(tr.dataset.id, dados.descricao, dados.categoria, meta.conta, dados.valor);
+                    return true;
+                })
+            });
+        });
+    }
+
+    function abrirEdicaoFixa(meta, tr) {
+        fetch('/api/categorias?tipo=receita').then(r => r.json()).then(catData => {
+            const cats = catData.categorias.map(c => c.nome);
+            const modos = [
+                { value: 'fixo',          label: 'Dia fixo do mês' },
+                { value: 'primeiro_util', label: '1º dia útil' },
+                { value: 'ultimo_util',   label: 'Último dia útil' },
+            ];
+            const dias = Array.from({length:31}, (_,i) => ({value: String(i+1), label: `Dia ${i+1}`}));
+
+            editorFixa.abrir({
+                titulo: 'Editar Receita Fixa',
+                campos: [
+                    { chave: 'descricao', tipo: 'text',   label: 'Descrição', valor: meta.descricao, required: true },
+                    { chave: 'categoria', tipo: 'select', label: 'Categoria', valor: meta.categoria, opcoes: cats },
+                    { chave: 'valor',     tipo: 'number', label: 'Valor (R$)', valor: meta.valor, min: 0.01, step: 0.01, required: true },
+                    { chave: 'modo_dia',  tipo: 'select', label: 'Quando receber', valor: meta.modo_dia || 'fixo', opcoes: modos },
+                    { chave: 'dia_mes',   tipo: 'select', label: 'Dia do mês', valor: String(meta.dia_mes), opcoes: dias },
+                ],
+                onSalvar: (dados) => apiAtualizar('/api/atualizar_receita_fixa', {
+                    id: tr.dataset.id, descricao: dados.descricao,
+                    categoria: dados.categoria, valor: parseFloat(dados.valor),
+                    modo_dia: dados.modo_dia, dia_mes: parseInt(dados.dia_mes),
+                }).then(ok => {
+                    if (!ok) return false;
+                    const novoMeta = {...meta,
+                        descricao: dados.descricao, categoria: dados.categoria,
+                        valor: parseFloat(dados.valor), modo_dia: dados.modo_dia,
+                        dia_mes: parseInt(dados.dia_mes)
+                    };
+                    pagFixa.remover(tr);
+                    addFixa(novoMeta);
+                    return true;
+                })
+            });
+        });
+    }
+
     // ── Carregar existentes ─────────────────────────────────
     const receitasExistentes = {{ receitas | tojson | default('[]') | safe }};
     receitasExistentes.forEach(l => {
@@ -443,5 +515,7 @@ document.addEventListener("DOMContentLoaded", function () {
 </div><!-- /page-wrapper -->
 
 <script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editar-utils.js') }}"></script>
+
 </body>
 </html>

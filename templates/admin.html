@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Controle de Finanças</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
+    <style>
+        thead.thead-fin th { background:#1A4D2E; color:#fff; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; padding:10px 12px; border:none; }
+        tbody tr td { font-size:13px; vertical-align:middle; }
+        .page-wrapper { display:flex; min-height:calc(100vh - 98px); }
+        .sidebar-nav { width:200px; min-width:200px; flex-shrink:0; }
+        .sidebar-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#adb5bd; padding:4px 12px 10px; }
+        .sidebar-nav .nav-link { font-size:13px; padding:7px 12px; border-radius:6px; color:rgba(255,255,255,.8)!important; transition:background .15s; }
+        .sidebar-nav .nav-link:hover { background:rgba(255,255,255,.1); color:#fff!important; }
+        .sidebar-content { flex:1; min-width:0; padding:1.5rem; }
+        .badge-admin { background:#1A4D2E; }
+        .badge-user  { background:#6c757d; }
+    </style>
+</head>
+<body class="bg-light">
+
+<header class="text-white py-3" style="background-color:#1A4D2E;">
+    <div class="container d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center">
+            <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
+                 alt="Logo" class="me-3" style="width:80px;height:80px;">
+            <div>
+                <h1 class="h5 mb-0">Controle de Finanças</h1>
+                <small>Painel Admin</small>
+            </div>
+        </div>
+        <nav class="d-flex align-items-center gap-3">
+            <a href="{{ url_for('index') }}"  class="text-white text-decoration-none">Início</a>
+            <span class="text-white opacity-50">|</span>
+            <span class="text-white opacity-75 small">{{ session.user_nome }}</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">Sair</a>
+        </nav>
+    </div>
+</header>
+
+<div class="page-wrapper">
+    <nav class="sidebar-nav bg-dark text-white p-3">
+        <div class="sidebar-title">Admin</div>
+        <ul class="nav flex-column">
+            <li><a href="{{ url_for('admin') }}"  class="nav-link text-white" aria-current="page">Usuários</a></li>
+            <li><a href="{{ url_for('index') }}"  class="nav-link text-white">Dashboard</a></li>
+        </ul>
+    </nav>
+
+    <div class="sidebar-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="mb-0"><i class="bi bi-people me-2 text-success"></i>Usuários cadastrados</h5>
+            <span class="badge bg-secondary">{{ usuarios|length }} usuário(s)</span>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} py-2 small">{{ message }}</div>
+        {% endfor %}
+        {% endwith %}
+
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="thead-fin">
+                        <tr>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Perfil</th>
+                            <th>Status</th>
+                            <th class="text-center">Transações</th>
+                            <th class="text-center">Contas</th>
+                            <th class="text-center">Cartões</th>
+                            <th>Desde</th>
+                            <th class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        <tr id="row-{{ u.id }}">
+                            <td class="fw-bold">{{ u.nome }}</td>
+                            <td class="text-muted small">{{ u.email }}</td>
+                            <td>
+                                <span class="badge badge-{{ u.role }}">{{ u.role }}</span>
+                            </td>
+                            <td>
+                                {% if u.ativo %}
+                                    <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inativo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ u.total_transacoes }}</td>
+                            <td class="text-center">{{ u.total_contas }}</td>
+                            <td class="text-center">{{ u.total_cartoes }}</td>
+                            <td class="text-muted small">{{ u.criado_em }}</td>
+                            <td class="text-center">
+                                <div class="d-flex gap-1 justify-content-center">
+                                    {% if u.id != session.user_id %}
+                                        {% if u.ativo %}
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                onclick="acao({{ u.id }}, 'desativar')"
+                                                title="Desativar">
+                                            <i class="bi bi-person-x"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-outline-success btn-sm"
+                                                onclick="acao({{ u.id }}, 'ativar')"
+                                                title="Ativar">
+                                            <i class="bi bi-person-check"></i>
+                                        </button>
+                                        {% endif %}
+
+                                        {% if u.role == 'user' %}
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                onclick="acao({{ u.id }}, 'promover')"
+                                                title="Promover a admin">
+                                            <i class="bi bi-arrow-up-circle"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-outline-secondary btn-sm"
+                                                onclick="acao({{ u.id }}, 'rebaixar')"
+                                                title="Remover admin">
+                                            <i class="bi bi-arrow-down-circle"></i>
+                                        </button>
+                                        {% endif %}
+                                    {% endif %}
+
+                                    <button class="btn btn-outline-warning btn-sm"
+                                            onclick="resetarSenha({{ u.id }}, '{{ u.nome }}')"
+                                            title="Resetar senha">
+                                        <i class="bi bi-key"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal resetar senha -->
+<div class="modal fade" id="modalSenha" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Resetar senha</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">Nova senha para <strong id="nomeReset"></strong>:</p>
+                <input type="password" id="novaSenha" class="form-control" placeholder="Mínimo 8 caracteres">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-sm btn-warning" onclick="confirmarReset()">Resetar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let resetUserId = null;
+const modalSenha = new bootstrap.Modal(document.getElementById('modalSenha'));
+
+function acao(userId, tipo) {
+    const msgs = {
+        desativar: 'Desativar este usuário?',
+        ativar:    'Ativar este usuário?',
+        promover:  'Promover a admin?',
+        rebaixar:  'Remover permissão de admin?',
+    };
+    if (!confirm(msgs[tipo] || 'Confirmar?')) return;
+
+    fetch('/api/admin/usuario/' + userId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({acao: tipo})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.reload();
+        else alert('Erro: ' + (d.error || 'desconhecido'));
+    });
+}
+
+function resetarSenha(userId, nome) {
+    resetUserId = userId;
+    document.getElementById('nomeReset').textContent = nome;
+    document.getElementById('novaSenha').value = '';
+    modalSenha.show();
+}
+
+function confirmarReset() {
+    const nova = document.getElementById('novaSenha').value;
+    if (nova.length < 8) { alert('Mínimo 8 caracteres.'); return; }
+
+    fetch('/api/admin/usuario/' + resetUserId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({acao: 'resetar_senha', nova_senha: nova})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) { modalSenha.hide(); alert('Senha resetada com sucesso.'); }
+        else alert('Erro: ' + (d.error || 'desconhecido'));
+    });
+}
+</script>
+</body>
+</html>
