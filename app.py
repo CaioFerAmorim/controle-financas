@@ -323,18 +323,19 @@ def valor_parcela_na_fatura(valor_total: float, parcelas: int,
 
 def total_fatura_atual():
     """
-    Soma o que está na fatura aberta de todos os cartões de crédito.
-    Para compras parceladas: conta apenas o valor da parcela do mês,
-    não o valor total da compra.
+    Soma o que está na fatura aberta de todos os cartões de crédito DO USUÁRIO LOGADO.
+    Para compras parceladas: conta apenas o valor da parcela do mês.
     """
     total = 0.0
+    user_id = uid() or 0
     with get_db() as conn:
         c = conn.cursor()
         c.execute("""
             SELECT id, data_vencimento, dias_fechamento FROM cartoes
             WHERE tipo_pagamento IN ('credito','multiplo')
               AND data_vencimento IS NOT NULL AND dias_fechamento IS NOT NULL
-        """)
+              AND user_id=?
+        """, (user_id,))
         for cartao_id, dia_venc, dias_fech in c.fetchall():
             inicio, fim, _ = periodo_fatura_atual(dia_venc, dias_fech)
 
@@ -342,9 +343,9 @@ def total_fatura_atual():
             c.execute("""
                 SELECT COALESCE(SUM(valor), 0) FROM transacoes
                 WHERE tipo='despesa' AND tipo_compra='credito'
-                  AND pagamento='avista'
+                  AND pagamento='avista' AND user_id=?
                   AND id_cartao=? AND data_lancamento BETWEEN ? AND ?
-            """, (cartao_id, inicio.isoformat(), fim.isoformat()))
+            """, (user_id, cartao_id, inicio.isoformat(), fim.isoformat()))
             total += c.fetchone()[0]
 
             # Despesas parceladas: conta apenas a parcela do período
@@ -352,8 +353,8 @@ def total_fatura_atual():
                 SELECT valor, parcelas, data_lancamento FROM transacoes
                 WHERE tipo='despesa' AND tipo_compra='credito'
                   AND pagamento='parcelado' AND parcelas >= 2
-                  AND id_cartao=?
-            """, (cartao_id,))
+                  AND user_id=? AND id_cartao=?
+            """, (user_id, cartao_id))
             for valor_total, parcelas, data_str in c.fetchall():
                 try:
                     data_compra = date.fromisoformat(str(data_str)[:10])
@@ -366,24 +367,23 @@ def total_fatura_atual():
 
 def despesas_fixas_pendentes_mes():
     """
-    Despesas fixas (assinaturas) que ainda não foram geradas este mês
-    mas vão cair. Usadas no cálculo do Disponível.
-    Retorna apenas as que são crédito (as de débito já descontam do saldo
-    quando geradas, então já estão refletidas no saldo_total).
+    Despesas fixas (assinaturas) do usuário logado que ainda não foram
+    geradas este mês mas vão cair. Usadas no cálculo do Disponível.
+    Retorna apenas as de crédito (as de débito já estão no saldo quando geradas).
     """
     hoje = date.today()
     total = 0.0
+    user_id = uid() or 0
     with get_db() as conn:
         c = conn.cursor()
-        c.execute("SELECT id, valor, dia_mes, modo_dia, id_cartao FROM despesas_fixas WHERE ativa=1")
+        c.execute("SELECT id, valor, dia_mes, modo_dia, id_cartao FROM despesas_fixas WHERE ativa=1 AND user_id=?", (user_id,))
         for df_id, valor, dia_mes, modo, id_cartao in c.fetchall():
             data_oc = data_ocorrencia(hoje.year, hoje.month, dia_mes, modo or 'fixo')
-            if data_oc <= hoje: continue  # já gerada ou gerada hoje
+            if data_oc <= hoje: continue
             chave = f'_df_{df_id}'
-            c.execute("SELECT COUNT(*) FROM transacoes WHERE tipo='despesa' AND categoria=? AND strftime('%Y-%m',data_lancamento)=?",
-                      (chave, hoje.strftime('%Y-%m')))
+            c.execute("SELECT COUNT(*) FROM transacoes WHERE tipo='despesa' AND categoria=? AND user_id=? AND strftime('%Y-%m',data_lancamento)=?",
+                      (chave, user_id, hoje.strftime('%Y-%m')))
             if c.fetchone()[0] > 0: continue
-            # Só considera se for crédito (débito vai abater do saldo quando gerado)
             if id_cartao:
                 total += valor
     return round(total, 2)
@@ -472,9 +472,10 @@ def gastos_categoria_mes(ano: int, mes: int, conn, limit: int = 5) -> list:
         FROM transacoes
         WHERE tipo = 'despesa' AND pagamento = 'avista'
           AND strftime('%Y-%m', data_lancamento) = ?
+          AND user_id = ?
           AND (categoria IS NULL OR (categoria NOT LIKE '_rf_%' AND categoria NOT LIKE '_df_%'))
         GROUP BY categoria
-    """, (mes_str,))
+    """, (mes_str, uid() or 0))
     for cat, val in c.fetchall():
         acum[cat] = acum.get(cat, 0) + val
 
@@ -483,8 +484,9 @@ def gastos_categoria_mes(ano: int, mes: int, conn, limit: int = 5) -> list:
         SELECT COALESCE(categoria, 'Sem categoria'), valor, parcelas, data_lancamento
         FROM transacoes
         WHERE tipo = 'despesa' AND pagamento = 'parcelado' AND parcelas >= 2
+          AND user_id = ?
           AND (categoria IS NULL OR (categoria NOT LIKE '_rf_%' AND categoria NOT LIKE '_df_%'))
-    """)
+    """, (uid() or 0,))
     for cat, valor_total, parcelas, data_str in c.fetchall():
         try:
             data_compra = date.fromisoformat(str(data_str)[:10])
@@ -538,16 +540,16 @@ def dashboard_por_cartao(cartao_id: int) -> dict:
             c.execute("""
                 SELECT COALESCE(SUM(valor), 0) FROM transacoes
                 WHERE tipo='despesa' AND tipo_compra='credito' AND pagamento='avista'
-                  AND id_cartao=? AND data_lancamento BETWEEN ? AND ?
-            """, (cartao_id, inicio_f.isoformat(), fim_f.isoformat()))
+                  AND id_cartao=? AND user_id=? AND data_lancamento BETWEEN ? AND ?
+            """, (cartao_id, uid() or 0, inicio_f.isoformat(), fim_f.isoformat()))
             fatura_atual += c.fetchone()[0]
 
             # Parceladas — só a parcela do período
             c.execute("""
                 SELECT valor, parcelas, data_lancamento FROM transacoes
                 WHERE tipo='despesa' AND tipo_compra='credito' AND pagamento='parcelado'
-                  AND parcelas >= 2 AND id_cartao=?
-            """, (cartao_id,))
+                  AND parcelas >= 2 AND id_cartao=? AND user_id=?
+            """, (cartao_id, uid() or 0))
             for vt, parc, ds in c.fetchall():
                 try:
                     dc = date.fromisoformat(str(ds)[:10])
@@ -562,9 +564,9 @@ def dashboard_por_cartao(cartao_id: int) -> dict:
         c.execute("""
             SELECT COALESCE(categoria, 'Sem categoria'), valor, pagamento, parcelas, data_lancamento
             FROM transacoes
-            WHERE tipo='despesa' AND id_cartao=?
+            WHERE tipo='despesa' AND id_cartao=? AND user_id=?
               AND (categoria IS NULL OR (categoria NOT LIKE '_rf_%' AND categoria NOT LIKE '_df_%'))
-        """, (cartao_id,))
+        """, (cartao_id, uid() or 0))
         for cat, vt, pag, parc, ds in c.fetchall():
             try:
                 dc = date.fromisoformat(str(ds)[:10])
@@ -593,9 +595,9 @@ def dashboard_por_cartao(cartao_id: int) -> dict:
                    ca.nome AS cartao_nome, t.data_lancamento, t.pagamento, t.parcelas
             FROM transacoes t
             LEFT JOIN cartoes ca ON t.id_cartao = ca.id
-            WHERE t.id_cartao = ? AND t.tipo = 'despesa'
+            WHERE t.id_cartao = ? AND t.user_id = ? AND t.tipo = 'despesa'
             ORDER BY t.data_lancamento DESC, t.id DESC LIMIT 10
-        """, (cartao_id,))
+        """, (cartao_id, uid() or 0))
         transacoes = []
         for r in c.fetchall():
             d = dict(r)
@@ -617,9 +619,9 @@ def dashboard_por_cartao(cartao_id: int) -> dict:
             # Busca todas as despesas do cartão para calcular o mês correto
             c.execute("""
                 SELECT valor, pagamento, parcelas, data_lancamento FROM transacoes
-                WHERE tipo='despesa' AND id_cartao=?
+                WHERE tipo='despesa' AND id_cartao=? AND user_id=?
                   AND (categoria IS NULL OR (categoria NOT LIKE '_rf_%' AND categoria NOT LIKE '_df_%'))
-            """, (cartao_id,))
+            """, (cartao_id, uid() or 0))
             desp_mes = 0.0
             for vt, pag, parc, ds in c.fetchall():
                 try:
@@ -671,7 +673,7 @@ def projecao_mensal(n_meses: int = 3):
             ano_alvo, mes_alvo = alvo.year, alvo.month
 
             # Receitas fixas
-            c.execute("SELECT COALESCE(SUM(valor), 0) FROM receitas_fixas WHERE ativa=1")
+            c.execute("SELECT COALESCE(SUM(valor), 0) FROM receitas_fixas WHERE ativa=1 AND user_id=?", (uid() or 0,))
             rec_fixas = c.fetchone()[0]
 
             # Despesas fixas (assinaturas)
@@ -679,7 +681,7 @@ def projecao_mensal(n_meses: int = 3):
             desp_fixas = c.fetchone()[0]
 
             # Parcelas: apenas a parcela que cai no mês alvo
-            c.execute("SELECT valor, parcelas, data_lancamento FROM transacoes WHERE tipo='despesa' AND pagamento='parcelado' AND parcelas>=2")
+            c.execute("SELECT valor, parcelas, data_lancamento FROM transacoes WHERE tipo='despesa' AND pagamento='parcelado' AND parcelas>=2 AND user_id=?", (uid() or 0,))
             desp_parc = 0.0
             for valor_total, parcelas, data_str in c.fetchall():
                 try: dc = date.fromisoformat(str(data_str)[:10])
@@ -933,7 +935,7 @@ def visaoGeral():
             FROM cartoes ca WHERE ca.tipo_pagamento IN ('credito','multiplo')
               AND ca.data_vencimento IS NOT NULL AND ca.dias_fechamento IS NOT NULL
               AND ca.user_id=?
-        """)
+        """, (uid(),))
         faturas_cartoes = []
         for cartao_id, nome_cartao, dia_venc, dias_fech, limite in c.fetchall():
             inicio, fim, vencimento = periodo_fatura_atual(dia_venc, dias_fech)
@@ -1155,7 +1157,7 @@ def adicionar_lancamento():
     with get_db() as conn:
         c = conn.cursor()
         if tipo == 'despesa' and id_cartao:
-            c.execute("SELECT tipo_pagamento FROM cartoes WHERE id=? AND user_id=?", (id_cartao, uid()))
+            c.execute("SELECT tipo_pagamento FROM cartoes WHERE id=? AND user_id=?", (id_cartao, uid() or 0))
             row = c.fetchone()
             if not row: return jsonify({'success': False, 'error': 'Cartão não encontrado'})
             tp = row[0]
