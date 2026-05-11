@@ -270,6 +270,7 @@ document.addEventListener("DOMContentLoaded", function () {
         tbody: document.getElementById('tabelaAvulsas'), thead: document.getElementById('theadAvulsa'),
         toolbar: document.getElementById('toolbarAvulsa'), selLinhas: document.getElementById('ippAvulsa'),
         ulPag: document.getElementById('pagAvulsa'), infoSpan: document.getElementById('infoAvulsa'),
+        onEditar:  (meta, tr) => abrirEdicaoAvulsa(meta, tr),
         colunas: [
             { chave: 'descricao', tipo: 'texto',  label: 'Descrição'           },
             { chave: 'categoria', tipo: 'texto',  label: 'Categoria', opcoes: true },
@@ -282,6 +283,7 @@ document.addEventListener("DOMContentLoaded", function () {
         tbody: document.getElementById('tabelaFixas'), thead: document.getElementById('theadFixa'),
         toolbar: document.getElementById('toolbarFixa'), selLinhas: document.getElementById('ippFixa'),
         ulPag: document.getElementById('pagFixa'), infoSpan: document.getElementById('infoFixa'),
+        onEditar:  (meta, tr) => abrirEdicaoFixa(meta, tr),
         colunas: [
             { chave: 'descricao', tipo: 'texto',  label: 'Descrição'           },
             { chave: 'categoria', tipo: 'texto',  label: 'Categoria', opcoes: true },
@@ -494,6 +496,67 @@ document.addEventListener("DOMContentLoaded", function () {
                     };
                     pagFixa.remover(tr);
                     addFixa(novoMeta);
+                    return true;
+                })
+            });
+        });
+    }
+
+
+    // ── Editores ─────────────────────────────────────────────────
+    const editorAvulsa = new EditorPanel('editorAvulsa');
+    const editorFixa   = new EditorPanel('editorFixa');
+
+    function abrirEdicaoAvulsa(meta, tr) {
+        fetch('/api/categorias?tipo=receita').then(r => r.json()).then(d => {
+            const cats = d.categorias.map(c => c.nome);
+            editorAvulsa.abrir({
+                titulo: 'Editar Receita',
+                campos: [
+                    { chave: 'descricao', tipo: 'text',   label: 'Descrição', valor: meta.descricao, required: true },
+                    { chave: 'categoria', tipo: 'select', label: 'Categoria', valor: meta.categoria, opcoes: cats },
+                    { chave: 'valor',     tipo: 'number', label: 'Valor (R$)', valor: meta.valor, min: 0.01, step: 0.01, required: true },
+                ],
+                onSalvar: (dados) => apiAtualizar('/api/atualizar_lancamento', {
+                    id: tr.dataset.id, descricao: dados.descricao,
+                    categoria: dados.categoria, valor: parseFloat(dados.valor),
+                }).then(ok => {
+                    if (!ok) return false;
+                    pagAvulsa.remover(tr);
+                    addAvulsa(tr.dataset.id, dados.descricao, dados.categoria, meta.conta, dados.valor);
+                    return true;
+                })
+            });
+        });
+    }
+
+    function abrirEdicaoFixa(meta, tr) {
+        fetch('/api/categorias?tipo=receita').then(r => r.json()).then(d => {
+            const cats = d.categorias.map(c => c.nome);
+            const modos = [
+                { value: 'fixo',          label: 'Dia fixo do mês' },
+                { value: 'primeiro_util', label: '1º dia útil' },
+                { value: 'ultimo_util',   label: 'Último dia útil' },
+            ];
+            const dias = Array.from({length:31}, (_,i) => ({value: String(i+1), label: 'Dia ' + (i+1)}));
+            editorFixa.abrir({
+                titulo: 'Editar Receita Fixa',
+                campos: [
+                    { chave: 'descricao', tipo: 'text',   label: 'Descrição', valor: meta.descricao, required: true },
+                    { chave: 'categoria', tipo: 'select', label: 'Categoria', valor: meta.categoria, opcoes: cats },
+                    { chave: 'valor',     tipo: 'number', label: 'Valor (R$)', valor: meta.valor, min: 0.01, step: 0.01, required: true },
+                    { chave: 'modo_dia',  tipo: 'select', label: 'Quando receber', valor: meta.modo_dia || 'fixo', opcoes: modos },
+                    { chave: 'dia_mes',   tipo: 'select', label: 'Dia do mês', valor: String(meta.dia_mes), opcoes: dias },
+                ],
+                onSalvar: (dados) => apiAtualizar('/api/atualizar_receita_fixa', {
+                    id: tr.dataset.id, descricao: dados.descricao,
+                    categoria: dados.categoria, valor: parseFloat(dados.valor),
+                    modo_dia: dados.modo_dia, dia_mes: parseInt(dados.dia_mes),
+                }).then(ok => {
+                    if (!ok) return false;
+                    pagFixa.remover(tr);
+                    addFixa({...meta, descricao: dados.descricao, categoria: dados.categoria,
+                        valor: parseFloat(dados.valor), modo_dia: dados.modo_dia, dia_mes: parseInt(dados.dia_mes)});
                     return true;
                 })
             });

@@ -203,6 +203,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody: document.getElementById('tabelaCatDesp'), thead: document.getElementById('theadCatDesp'),
         toolbar: document.getElementById('toolbarCatDesp'), selLinhas: document.getElementById('ippCatDesp'),
         ulPag: document.getElementById('pagCatDesp'), infoSpan: document.getElementById('infoCatDesp'),
+        onEditar:  (meta, tr) => abrirEdicaoCat(meta, tr, pagDesp, "despesa"),
         colunas: [
             { chave: 'nome',  tipo: 'texto', label: 'Nome'  },
             { chave: 'acoes', tipo: 'acoes', label: 'Ações' },
@@ -212,6 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody: document.getElementById('tabelaCatRec'), thead: document.getElementById('theadCatRec'),
         toolbar: document.getElementById('toolbarCatRec'), selLinhas: document.getElementById('ippCatRec'),
         ulPag: document.getElementById('pagCatRec'), infoSpan: document.getElementById('infoCatRec'),
+        onEditar:  (meta, tr) => abrirEdicaoCat(meta, tr, pagRec, "receita"),
         colunas: [
             { chave: 'nome',  tipo: 'texto', label: 'Nome'  },
             { chave: 'acoes', tipo: 'acoes', label: 'Ações' },
@@ -233,6 +235,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
+    const editorCat = new EditorPanel('editorCat');
+
+    function abrirEdicaoCat(meta, tr, paginador, tipo) {
+        editorCat.abrir({
+            titulo: 'Editar Categoria',
+            campos: [
+                { chave: 'nome', tipo: 'text', label: 'Nome da categoria', valor: meta.nome, required: true },
+            ],
+            onSalvar: (dados) => apiAtualizar('/api/atualizar_categoria', {
+                id: tr.dataset.id, nome: dados.nome,
+            }).then(ok => {
+                if (!ok) return false;
+                paginador.remover(tr);
+                addCategoria(paginador, tr.dataset.id, dados.nome, tipo);
+                return true;
+            })
+        });
+    }
+
+
+    // ── Editor de categorias ─────────────────────────────────────
     const editorCat = new EditorPanel('editorCat');
 
     function abrirEdicaoCat(meta, tr, paginador, tipo) {
