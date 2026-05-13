@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 import sqlite3, os, calendar
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 from functools import wraps
 from dateutil.relativedelta import relativedelta  # pip install python-dateutil
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -55,31 +55,41 @@ def init_db():
 
         c.execute('''CREATE TABLE IF NOT EXISTS categorias (
             id      INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL REFERENCES usuarios(id),
+            user_id INTEGER NOT NULL DEFAULT 1,
             nome    TEXT    NOT NULL,
-            tipo    TEXT    CHECK(tipo IN ('despesa','receita')) DEFAULT 'despesa',
-            UNIQUE(user_id, nome)
+            tipo    TEXT    CHECK(tipo IN ('despesa','receita')) DEFAULT 'despesa'
         )''')
+        # Garante índice único por (user_id, nome) sem quebrar migração
+        try:
+            c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_cat_user_nome ON categorias(user_id, nome)')
+        except Exception:
+            pass
 
         c.execute('''CREATE TABLE IF NOT EXISTS contas (
             id      INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL REFERENCES usuarios(id),
+            user_id INTEGER NOT NULL DEFAULT 1,
             nome    TEXT    NOT NULL,
-            saldo   REAL    DEFAULT 0,
-            UNIQUE(user_id, nome)
+            saldo   REAL    DEFAULT 0
         )''')
+        try:
+            c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_conta_user_nome ON contas(user_id, nome)')
+        except Exception:
+            pass
 
         c.execute('''CREATE TABLE IF NOT EXISTS cartoes (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id         INTEGER NOT NULL REFERENCES usuarios(id),
+            user_id         INTEGER NOT NULL DEFAULT 1,
             nome            TEXT    NOT NULL,
             conta           INTEGER NOT NULL REFERENCES contas(id),
             tipo_pagamento  TEXT    CHECK(tipo_pagamento IN ('credito','debito','multiplo')),
             data_vencimento INTEGER,
             dias_fechamento INTEGER,
-            limite          REAL    DEFAULT 0,
-            UNIQUE(user_id, nome)
+            limite          REAL    DEFAULT 0
         )''')
+        try:
+            c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_cartao_user_nome ON cartoes(user_id, nome)')
+        except Exception:
+            pass
 
         c.execute('''CREATE TABLE IF NOT EXISTS receitas_fixas (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,9 +133,8 @@ def init_db():
 
         conn.commit()
 
-
 def criar_categorias_padrao(user_id: int):
-    """Cria categorias padrão para um novo usuário."""
+    """Cria categorias padrão para um usuário se ele ainda não tiver nenhuma."""
     padrao = [
         ('Alimentação','despesa'), ('Transporte','despesa'), ('Moradia','despesa'),
         ('Saúde','despesa'),       ('Educação','despesa'),   ('Lazer','despesa'),
@@ -134,11 +143,15 @@ def criar_categorias_padrao(user_id: int):
     ]
     with get_db() as conn:
         c = conn.cursor()
-        for nome, tipo in padrao:
-            c.execute("INSERT OR IGNORE INTO categorias (user_id, nome, tipo) VALUES (?,?,?)",
-                      (user_id, nome, tipo))
-        conn.commit()
-
+        c.execute("SELECT COUNT(*) FROM categorias WHERE user_id=?", (user_id,))
+        if c.fetchone()[0] == 0:
+            for nome, tipo in padrao:
+                try:
+                    c.execute("INSERT INTO categorias (user_id, nome, tipo) VALUES (?,?,?)",
+                              (user_id, nome, tipo))
+                except Exception:
+                    pass
+            conn.commit()
 
 # ================================================================
 # AUTENTICAÇÃO — decorators e helpers
@@ -173,7 +186,6 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
-
 # ================================================================
 # DIAS ÚTEIS BRASILEIROS
 # ================================================================
@@ -200,7 +212,6 @@ def data_ocorrencia(ano: int, mes: int, dia_mes: int, modo_dia: str) -> date:
     if modo_dia == 'primeiro_util': return primeiro_dia_util(ano, mes)
     if modo_dia == 'ultimo_util':   return ultimo_dia_util(ano, mes)
     return date(ano, mes, min(dia_mes, calendar.monthrange(ano, mes)[1]))
-
 
 # ================================================================
 # GERAÇÃO AUTOMÁTICA DE OCORRÊNCIAS
@@ -230,7 +241,6 @@ def gerar_ocorrencias_receitas_fixas(user_id=None):
                       (uid_rf, desc, valor, chave, id_conta, data_oc.isoformat()))
             c.execute("UPDATE contas SET saldo=saldo+? WHERE id=?", (valor, id_conta))
         conn.commit()
-
 
 def gerar_ocorrencias_despesas_fixas(user_id=None):
     """
@@ -273,7 +283,6 @@ def gerar_ocorrencias_despesas_fixas(user_id=None):
 
         conn.commit()
 
-
 # ================================================================
 # HELPERS — FATURA E PARCELAS
 # ================================================================
@@ -297,7 +306,6 @@ def periodo_fatura_atual(dia_vencimento: int, dias_fechamento: int, referencia: 
     fech_anterior = venc_anterior - timedelta(days=dias_fechamento)
     return fech_anterior, fech_atual - timedelta(days=1), venc_atual
 
-
 def valor_parcela_na_fatura(valor_total: float, parcelas: int,
                              data_compra: date, inicio_fatura: date, fim_fatura: date) -> float:
     """
@@ -319,7 +327,6 @@ def valor_parcela_na_fatura(valor_total: float, parcelas: int,
         if inicio_fatura <= fim_mes and fim_fatura >= ini_mes:
             return vp
     return 0.0
-
 
 def total_fatura_atual():
     """
@@ -364,7 +371,6 @@ def total_fatura_atual():
 
     return round(total, 2)
 
-
 def despesas_fixas_pendentes_mes():
     """
     Despesas fixas (assinaturas) do usuário logado que ainda não foram
@@ -388,7 +394,6 @@ def despesas_fixas_pendentes_mes():
                 total += valor
     return round(total, 2)
 
-
 def receitas_fixas_pendentes_mes():
     """
     Receitas fixas que ainda não foram creditadas neste mês mas vão cair.
@@ -403,12 +408,11 @@ def receitas_fixas_pendentes_mes():
             data_oc = data_ocorrencia(hoje.year, hoje.month, dia_mes, modo or 'fixo')
             if data_oc <= hoje: continue
             chave = f'_rf_{rf_id}'
-            c.execute("SELECT COUNT(*) FROM transacoes WHERE tipo='receita' AND id_conta=? AND categoria=? AND strftime('%Y-%m',data_lancamento)=?",
-                      (id_conta, chave, hoje.strftime('%Y-%m')))
+            c.execute("SELECT COUNT(*) FROM transacoes WHERE tipo='receita' AND id_conta=? AND categoria=? AND user_id=? AND strftime('%Y-%m',data_lancamento)=?",
+                      (id_conta, chave, user_id, hoje.strftime('%Y-%m')))
             if c.fetchone()[0] > 0: continue
             total += valor
     return round(total, 2)
-
 
 def despesas_reais_mes(ano: int, mes: int, conn) -> float:
     """
@@ -455,7 +459,6 @@ def despesas_reais_mes(ano: int, mes: int, conn) -> float:
                 break
 
     return round(total, 2)
-
 
 def gastos_categoria_mes(ano: int, mes: int, conn, limit: int = 5) -> list:
     """
@@ -505,8 +508,6 @@ def gastos_categoria_mes(ano: int, mes: int, conn, limit: int = 5) -> list:
     )
     return resultado[:limit]
 
-
-
 def dashboard_por_cartao(cartao_id: int) -> dict:
     """
     Calcula todos os dados do dashboard filtrados por um cartão específico.
@@ -524,7 +525,7 @@ def dashboard_por_cartao(cartao_id: int) -> dict:
             SELECT ca.nome, ca.data_vencimento, ca.dias_fechamento, ca.limite,
                    ca.tipo_pagamento
             FROM cartoes ca WHERE ca.id = ? AND ca.user_id = ?
-        """, (cartao_id, uid()))
+        """, (cartao_id, uid() or 0))
         row = c.fetchone()
         if not row:
             return None
@@ -677,7 +678,7 @@ def projecao_mensal(n_meses: int = 3):
             rec_fixas = c.fetchone()[0]
 
             # Despesas fixas (assinaturas)
-            c.execute("SELECT COALESCE(SUM(valor), 0) FROM despesas_fixas WHERE ativa=1")
+            c.execute("SELECT COALESCE(SUM(valor), 0) FROM despesas_fixas WHERE ativa=1 AND user_id=?", (uid() or 0,))
             desp_fixas = c.fetchone()[0]
 
             # Parcelas: apenas a parcela que cai no mês alvo
@@ -701,7 +702,6 @@ def projecao_mensal(n_meses: int = 3):
                 'saldo':               round(rec_fixas - desp_fixas - desp_parc, 2),
             })
     return resultado
-
 
 # ================================================================
 # ROTA PRINCIPAL /
@@ -770,7 +770,6 @@ def index():
         cartoes_credito=cartoes_credito,
     )
 
-
 @app.route('/api/dashboard_data')
 @login_required
 def dashboard_data():
@@ -797,7 +796,6 @@ def dashboard_data():
         'disponivel_mes': round(saldo_total + rec_pendentes - fatura_atual - desp_pendentes, 2),
     })
 
-
 @app.route('/api/dashboard_cartao/<int:cartao_id>')
 @login_required
 def api_dashboard_cartao(cartao_id):
@@ -806,7 +804,6 @@ def api_dashboard_cartao(cartao_id):
     if dados is None:
         return jsonify({'success': False, 'error': 'Cartão não encontrado'}), 404
     return jsonify({'success': True, **dados})
-
 
 # ================================================================
 # ROTAS DE PÁGINAS
@@ -829,7 +826,6 @@ def lancamentos():
         lancamentos_db = [list(r) for r in c.fetchall()]
     return render_template('lancamentos.html', lancamentos=lancamentos_db)
 
-
 @app.route('/lancamentosReceita')
 @login_required
 def lancamentosReceita():
@@ -849,12 +845,10 @@ def lancamentosReceita():
         receitas = [list(r) for r in c.fetchall()]
     return render_template('lancamentosReceita.html', receitas=receitas)
 
-
 @app.route('/lancamentosAssinaturas')
 @login_required
 def lancamentosAssinaturas():
     return render_template('lancamentosAssinaturas.html')
-
 
 @app.route('/lancamentosConta')
 @login_required
@@ -864,7 +858,6 @@ def lancamentosConta():
         c.execute("SELECT id, nome, saldo FROM contas WHERE user_id=? ORDER BY nome", (uid(),))
         contas = [list(r) for r in c.fetchall()]
     return render_template('lancamentosConta.html', contas=contas)
-
 
 @app.route('/lancamentosCartao')
 @login_required
@@ -882,7 +875,6 @@ def lancamentosCartao():
         contas = [list(r) for r in c.fetchall()]
     return render_template('lancamentosCartao.html', cartoes=cartoes, contas=contas)
 
-
 @app.route('/lancamentosCategorias')
 @login_required
 def lancamentosCategorias():
@@ -892,12 +884,10 @@ def lancamentosCategorias():
         categorias = [list(r) for r in c.fetchall()]
     return render_template('lancamentosCategorias.html', categorias=categorias)
 
-
 @app.route('/projecoes')
 @login_required
 def projecoes():
     return render_template('projecoes.html', projecoes=projecao_mensal(6))
-
 
 @app.route('/visaoGeral')
 @login_required
@@ -943,15 +933,15 @@ def visaoGeral():
             c.execute("""
                 SELECT COALESCE(SUM(valor),0) FROM transacoes
                 WHERE tipo='despesa' AND tipo_compra='credito' AND pagamento='avista'
-                  AND id_cartao=? AND data_lancamento BETWEEN ? AND ?
-            """, (cartao_id, inicio.isoformat(), fim.isoformat()))
+                  AND id_cartao=? AND user_id=? AND data_lancamento BETWEEN ? AND ?
+            """, (cartao_id, uid(), inicio.isoformat(), fim.isoformat()))
             gasto = c.fetchone()[0]
             # Parcelado (apenas parcela do período)
             c.execute("""
                 SELECT valor, parcelas, data_lancamento FROM transacoes
                 WHERE tipo='despesa' AND tipo_compra='credito' AND pagamento='parcelado'
-                  AND parcelas>=2 AND id_cartao=?
-            """, (cartao_id,))
+                  AND parcelas>=2 AND id_cartao=? AND user_id=?
+            """, (cartao_id, uid()))
             for vt, parc, ds in c.fetchall():
                 try: dc = date.fromisoformat(str(ds)[:10])
                 except: continue
@@ -965,7 +955,6 @@ def visaoGeral():
     return render_template('visaoGeral.html',
         historico=historico, por_categoria=por_categoria,
         por_conta=por_conta, faturas_cartoes=faturas_cartoes)
-
 
 # ================================================================
 # APIs — CONTAS
@@ -1008,7 +997,6 @@ def remover_conta():
         c.execute("DELETE FROM contas WHERE id=? AND user_id=?", (conta_id, uid()))
         conn.commit()
     return jsonify({'success': True})
-
 
 # ================================================================
 # APIs — CARTÕES
@@ -1057,7 +1045,6 @@ def remover_cartao():
         conn.commit()
     return jsonify({'success': True})
 
-
 # ================================================================
 # APIs — CATEGORIAS
 # ================================================================
@@ -1102,7 +1089,6 @@ def remover_categoria():
         c.execute("DELETE FROM categorias WHERE id=? AND user_id=?", (cat_id, uid()))
         conn.commit()
     return jsonify({'success': True})
-
 
 # ================================================================
 # APIs — LANÇAMENTOS (avulsos)
@@ -1185,7 +1171,6 @@ def adicionar_lancamento():
         conn.commit()
         return jsonify({'success': True, 'id': c.lastrowid})
 
-
 @app.route('/api/remover_lancamento', methods=['POST'])
 @login_required
 def remover_lancamento():
@@ -1206,7 +1191,6 @@ def remover_lancamento():
         conn.commit()
     return jsonify({'success': True})
 
-
 # ================================================================
 # APIs — RECEITAS FIXAS
 # ================================================================
@@ -1220,8 +1204,9 @@ def api_listar_receitas_fixas():
             SELECT rf.id, rf.descricao, rf.valor, rf.categoria,
                    rf.id_conta, co.nome, rf.dia_mes, rf.ativa, COALESCE(rf.modo_dia,'fixo')
             FROM receitas_fixas rf LEFT JOIN contas co ON rf.id_conta=co.id
+            WHERE rf.user_id=?
             ORDER BY rf.dia_mes, rf.descricao
-        """)
+        """, (uid(),))
         fixas = [{'id':r[0],'descricao':r[1],'valor':r[2],'categoria':r[3],
                   'id_conta':r[4],'conta_nome':r[5],'dia_mes':r[6],'ativa':r[7],'modo_dia':r[8]}
                  for r in c.fetchall()]
@@ -1245,8 +1230,8 @@ def api_adicionar_receita_fixa():
     except: return jsonify({'success': False, 'error': 'Valor inválido'})
     with get_db() as conn:
         c = conn.cursor()
-        c.execute("INSERT INTO receitas_fixas (descricao,valor,categoria,id_conta,dia_mes,modo_dia) VALUES (?,?,?,?,?,?)",
-                  (descricao, valor, categoria, id_conta, dia_mes, modo_dia))
+        c.execute("INSERT INTO receitas_fixas (user_id,descricao,valor,categoria,id_conta,dia_mes,modo_dia) VALUES (?,?,?,?,?,?,?)",
+                  (uid(), descricao, valor, categoria, id_conta, dia_mes, modo_dia))
         conn.commit()
         novo_id = c.lastrowid
     gerar_ocorrencias_receitas_fixas(user_id=uid())
@@ -1277,7 +1262,6 @@ def api_pausar_receita_fixa():
         conn.commit()
     return jsonify({'success': True})
 
-
 # ================================================================
 # APIs — DESPESAS FIXAS (assinaturas)
 # ================================================================
@@ -1295,6 +1279,7 @@ def api_listar_despesas_fixas():
             FROM despesas_fixas df
             LEFT JOIN cartoes ca ON df.id_cartao=ca.id
             LEFT JOIN contas  co ON df.id_conta=co.id
+            WHERE df.user_id=?
             ORDER BY df.dia_mes, df.descricao
         """, (uid(),))
         fixas = [{'id':r[0],'descricao':r[1],'valor':r[2],'categoria':r[3],
@@ -1324,8 +1309,8 @@ def api_adicionar_despesa_fixa():
     except: return jsonify({'success': False, 'error': 'Valor inválido'})
     with get_db() as conn:
         c = conn.cursor()
-        c.execute("INSERT INTO despesas_fixas (descricao,valor,categoria,id_cartao,id_conta,dia_mes,modo_dia) VALUES (?,?,?,?,?,?,?)",
-                  (descricao, valor, categoria, id_cartao, id_conta, dia_mes, modo_dia))
+        c.execute("INSERT INTO despesas_fixas (user_id,descricao,valor,categoria,id_cartao,id_conta,dia_mes,modo_dia) VALUES (?,?,?,?,?,?,?,?)",
+                  (uid(), descricao, valor, categoria, id_cartao, id_conta, dia_mes, modo_dia))
         conn.commit()
         novo_id = c.lastrowid
     gerar_ocorrencias_despesas_fixas(user_id=uid())
@@ -1356,7 +1341,6 @@ def api_pausar_despesa_fixa():
         conn.commit()
     return jsonify({'success': True})
 
-
 # ================================================================
 # API — FATURA DETALHADA
 # ================================================================
@@ -1366,16 +1350,17 @@ def api_pausar_despesa_fixa():
 def fatura_cartao(cartao_id):
     with get_db() as conn:
         c = conn.cursor()
-        c.execute("SELECT data_vencimento, dias_fechamento FROM cartoes WHERE id=?", (cartao_id,))
+        c.execute("SELECT data_vencimento, dias_fechamento FROM cartoes WHERE id=? AND user_id=?", (cartao_id, uid()))
         row = c.fetchone()
         if not row: return jsonify({'success': False, 'error': 'Cartão não encontrado'})
         inicio, fim, venc = periodo_fatura_atual(row[0], row[1])
         c.execute("""
             SELECT id, descricao, valor, data_lancamento, categoria, pagamento, parcelas
             FROM transacoes
-            WHERE tipo='despesa' AND id_cartao=? AND data_lancamento BETWEEN ? AND ?
+            WHERE tipo='despesa' AND id_cartao=? AND user_id=?
+              AND data_lancamento BETWEEN ? AND ?
             ORDER BY data_lancamento
-        """, (cartao_id, inicio.isoformat(), fim.isoformat()))
+        """, (cartao_id, uid(), inicio.isoformat(), fim.isoformat()))
         itens = []
         total = 0.0
         for r in c.fetchall():
@@ -1399,11 +1384,9 @@ def fatura_cartao(cartao_id):
         'total':          round(total, 2),
     })
 
-
 # ================================================================
 # INICIALIZAÇÃO
 # ================================================================
-
 
 # ==============================================================
 # APIs — UPDATE (edição in-place)
@@ -1448,8 +1431,9 @@ def atualizar_lancamento():
     with get_db() as conn:
         c = conn.cursor()
         c.execute("""
-            SELECT tipo, valor, parcelas, id_cartao, tipo_compra FROM transacoes WHERE id=?
-        """, (lid,))
+            SELECT tipo, valor, parcelas, id_cartao, tipo_compra FROM transacoes
+            WHERE id=? AND user_id=?
+        """, (lid, uid()))
         row = c.fetchone()
         if not row:
             return jsonify({'success': False, 'error': 'Lançamento não encontrado'})
@@ -1462,16 +1446,16 @@ def atualizar_lancamento():
             if delta != 0:
                 c.execute("""
                     UPDATE contas SET saldo = saldo - ?
-                    WHERE id = (SELECT conta FROM cartoes WHERE id=?)
-                """, (delta, id_cartao))
+                    WHERE id = (SELECT conta FROM cartoes WHERE id=? AND user_id=?)
+                """, (delta, id_cartao, uid()))
 
         # Ajusta saldo para receita avulsa
         if tipo == 'receita':
             delta = novo_valor - valor_antigo
             if delta != 0:
                 c.execute("""
-                    SELECT id_conta FROM transacoes WHERE id=?
-                """, (lid,))
+                    SELECT id_conta FROM transacoes WHERE id=? AND user_id=?
+                """, (lid, uid()))
                 id_conta = c.fetchone()
                 if id_conta and id_conta[0]:
                     c.execute("UPDATE contas SET saldo = saldo + ? WHERE id=?", (delta, id_conta[0]))
@@ -1484,11 +1468,10 @@ def atualizar_lancamento():
               nova_data.isoformat() if nova_data else None,
               novo_valor,
               novas_parcelas,
-              lid))
+              lid, uid()))
         conn.commit()
 
     return jsonify({'success': True})
-
 
 @app.route('/api/atualizar_cartao', methods=['POST'])
 @login_required
@@ -1508,14 +1491,13 @@ def atualizar_cartao():
         try:
             c.execute("""
                 UPDATE cartoes SET nome=?, limite=?, data_vencimento=?, dias_fechamento=?
-                WHERE id=?
-            """, (nome, float(limite or 0), data_vencimento, dias_fechamento, cid))
+                WHERE id=? AND user_id=?
+            """, (nome, float(limite or 0), data_vencimento, dias_fechamento, cid, uid()))
             conn.commit()
         except sqlite3.IntegrityError:
             return jsonify({'success': False, 'error': 'Já existe um cartão com esse nome'})
 
     return jsonify({'success': True})
-
 
 @app.route('/api/atualizar_conta', methods=['POST'])
 @login_required
@@ -1537,7 +1519,6 @@ def atualizar_conta():
 
     return jsonify({'success': True})
 
-
 @app.route('/api/atualizar_categoria', methods=['POST'])
 @login_required
 def atualizar_categoria():
@@ -1557,7 +1538,6 @@ def atualizar_categoria():
             return jsonify({'success': False, 'error': 'Categoria já existe com esse nome'})
 
     return jsonify({'success': True})
-
 
 @app.route('/api/atualizar_receita_fixa', methods=['POST'])
 @login_required
@@ -1591,7 +1571,6 @@ def atualizar_receita_fixa():
 
     return jsonify({'success': True})
 
-
 @app.route('/api/atualizar_despesa_fixa', methods=['POST'])
 @login_required
 def atualizar_despesa_fixa():
@@ -1623,7 +1602,6 @@ def atualizar_despesa_fixa():
         conn.commit()
 
     return jsonify({'success': True})
-
 
 # ================================================================
 # AUTENTICAÇÃO — login / cadastro / logout
@@ -1659,10 +1637,11 @@ def login():
         session['user_id']   = user[0]
         session['user_nome'] = user[1]
         session['user_role'] = user[3]
+        # Garante categorias padrão (cria só se o usuário não tiver nenhuma)
+        criar_categorias_padrao(user[0])
         return redirect(url_for('index'))
 
     return render_template('login.html')
-
 
 @app.route('/cadastro', methods=['GET', 'POST'])
 def cadastro():
@@ -1707,13 +1686,11 @@ def cadastro():
 
     return render_template('cadastro.html')
 
-
 @app.route('/logout')
 def logout():
     session.clear()
     flash('Você saiu da sua conta.', 'info')
     return redirect(url_for('login'))
-
 
 # ================================================================
 # ADMIN — painel de usuários
@@ -1738,7 +1715,6 @@ def admin():
         usuarios = [dict(r) for r in c.fetchall()]
     return render_template('admin.html', usuarios=usuarios)
 
-
 @app.route('/api/admin/usuarios')
 @admin_required
 def api_admin_usuarios():
@@ -1749,7 +1725,6 @@ def api_admin_usuarios():
         """)
         usuarios = [dict(r) for r in c.fetchall()]
     return jsonify({'usuarios': usuarios})
-
 
 @app.route('/api/admin/usuario/<int:user_id>', methods=['POST'])
 @admin_required
@@ -1789,7 +1764,6 @@ def api_admin_usuario(user_id):
         conn.commit()
 
     return jsonify({'success': True})
-
 
 @app.route('/api/minha_conta', methods=['POST'])
 @login_required
