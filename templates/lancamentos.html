@@ -2,186 +2,232 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Despesas - Controle de Finanças</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Despesas — Smart Money</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
-    <style>
-        /* ── Sidebar fixa que acompanha o conteúdo ─────────────── */
-        .page-wrapper {
-            display: flex;
-            min-height: calc(100vh - 98px); /* desconta o header */
-        }
-        .sidebar-nav {
-            width: 200px;
-            min-width: 200px;
-            flex-shrink: 0;
-        }
-        .sidebar-title {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .08em;
-            color: #adb5bd;
-            padding: 4px 12px 10px;
-        }
-        .sidebar-nav .nav-link {
-            font-size: 13px;
-            padding: 7px 12px;
-            border-radius: 6px;
-            color: rgba(255,255,255,.8) !important;
-            transition: background .15s, color .15s;
-        }
-        .sidebar-nav .nav-link:hover {
-            background: rgba(255,255,255,.1);
-            color: #fff !important;
-        }
-        .sidebar-nav .nav-link[aria-current="page"] {
-            background: rgba(255,255,255,.15);
-            color: #fff !important;
-            font-weight: 600;
-        }
-        .sidebar-content {
-            flex: 1;
-            min-width: 0;
-            padding: 1.5rem;
-        }
-
-        thead.thead-fin th { background:#1A4D2E; color:#fff; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; padding:10px 12px; border:none; white-space:nowrap; }
-        tbody tr td { font-size:13px; vertical-align:middle; }
-        .pag-info { font-size:12px; color:#6c757d; }
-        .table-wrapper { min-height:420px; }
-    </style>
+    
 </head>
-<body class="bg-light">
+<body>
+<div class="sm-shell">
 
-<!-- Header -->
-<header class="text-white py-3" style="background-color: #1A4D2E;">
-    <div class="container d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center">
-            <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
-                 alt="Logo" class="me-3" style="width:80px;height:80px;">
-            <div><h1 class="h5 mb-0">Controle de Finanças</h1><small>Gerencie seus gastos</small></div>
-        </div>
-        <nav>
-            <a href="{{ url_for('index') }}"       class="text-white text-decoration-none me-3">Início</a>
-            <a href="{{ url_for('lancamentos') }}" class="text-white text-decoration-none me-3">Lançamentos</a>
-            <a href="{{ url_for('projecoes') }}"   class="text-white text-decoration-none me-3">Projeções</a>
-            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none me-3">Visão Geral</a>
-            {% if session.user_role == 'admin' %}
-            <a href="{{ url_for('admin') }}" class="text-white text-decoration-none me-3" title="Admin">
-                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="opacity-75"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
-            </a>
-            {% endif %}
-            <span class="text-white opacity-75 small me-2">{{ session.user_nome }}</span>
-            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light py-1 px-2" style="font-size:12px;">Sair</a>
-        </nav>
-    </div>
-</header>
-
-<div class="page-wrapper">
-    <nav class="sidebar-nav bg-dark text-white p-3">
-        <div class="sidebar-title">Lançamentos</div>
-        <ul class="nav flex-column">
-            <li class="nav-item"><a href="{{ url_for('lancamentos') }}"            class="nav-link text-white" aria-current="page">Despesas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosAssinaturas') }}" class="nav-link text-white">Assinaturas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosReceita') }}"     class="nav-link text-white">Receitas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosConta') }}"       class="nav-link text-white">Contas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosCartao') }}"      class="nav-link text-white">Cartões</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosCategorias') }}"  class="nav-link text-white">Categorias</a></li>
-        </ul>
+  <!-- SIDEBAR -->
+  <aside class="sm-sidebar mini" id="sm-sidebar">
+    <button class="sm-sb-toggle mini" id="sm-sb-toggle" onclick="smToggleSidebar()" title="Expandir menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="sm-sb-icon">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+    <a class="sm-sb-logo" href="{{ url_for('index') }}">
+      <div class="sm-sb-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+      </div>
+      <div class="sm-sb-logo-text">
+        <div class="sm-sb-brand">Smart Money</div>
+        <div class="sm-sb-sub">Controle Financeiro</div>
+      </div>
+    </a>
+    <nav class="sm-sb-nav">
+      <div class="sm-sb-section">Principal</div>
+      <a href="{{ url_for('index') }}" class="sm-nav-item" title="Início">
+        <i class="ti ti-home sm-nav-icon"></i><span class="sm-nav-label">Início</span>
+      </a>
+      <a href="{{ url_for('projecoes') }}" class="sm-nav-item" title="Projeções">
+        <i class="ti ti-chart-line sm-nav-icon"></i><span class="sm-nav-label">Projeções</span>
+      </a>
+      <a href="{{ url_for('visaoGeral') }}" class="sm-nav-item" title="Visão Geral">
+        <i class="ti ti-chart-bar sm-nav-icon"></i><span class="sm-nav-label">Visão Geral</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Lançamentos</div>
+      <a href="{{ url_for('lancamentos') }}" class="sm-nav-item active" title="Despesas">
+        <i class="ti ti-trending-down sm-nav-icon"></i><span class="sm-nav-label">Despesas</span>
+      </a>
+      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Assinaturas">
+        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Assinaturas</span>
+      </a>
+      <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
+        <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Cadastros</div>
+      <a href="{{ url_for('lancamentosConta') }}" class="sm-nav-item" title="Contas">
+        <i class="ti ti-building-bank sm-nav-icon"></i><span class="sm-nav-label">Contas</span>
+      </a>
+      <a href="{{ url_for('lancamentosCartao') }}" class="sm-nav-item" title="Cartões">
+        <i class="ti ti-credit-card sm-nav-icon"></i><span class="sm-nav-label">Cartões</span>
+      </a>
+      <a href="{{ url_for('lancamentosCategorias') }}" class="sm-nav-item" title="Categorias">
+        <i class="ti ti-tag sm-nav-icon"></i><span class="sm-nav-label">Categorias</span>
+      </a>
     </nav>
-    <div class="sidebar-content">
-<!-- Conteúdo -->
-    <div class="container mt-4">
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white">
-                Despesas
-                <small class="ms-2 opacity-75">— para despesas recorrentes use <a href="{{ url_for('lancamentosAssinaturas') }}" class="text-warning">Assinaturas</a></small>
-            </div>
-            <div class="card-body">
-
-                <!-- Formulário -->
-                <form id="formDespesas" class="mb-4">
-                    <div class="row g-2 align-items-end">
-                        <div class="col-md-4">
-                            <label class="form-label small text-muted mb-1">Descrição</label>
-                            <input type="text" class="form-control" id="compra" placeholder="Ex: Supermercado, Combustível..." required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted mb-1">Categoria</label>
-                            <select id="categoria" class="form-select" required>
-                                <option value="">Selecione...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted mb-1">Cartão</label>
-                            <select id="cartao" class="form-select" required>
-                                <option value="">Selecione...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small text-muted mb-1">Data</label>
-                            <input type="date" class="form-control" id="dataCompra" required>
-                        </div>
-                    </div>
-                    <div class="row g-2 mt-2 align-items-end">
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted mb-1">Valor Total (R$)</label>
-                            <input type="number" class="form-control" id="valor" placeholder="0,00" step="0.01" min="0.01" required>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small text-muted mb-1">Pagamento</label>
-                            <select class="form-select" id="tipoPagamento">
-                                <option value="avista">À vista</option>
-                                <option value="parcelado">Parcelado</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small text-muted mb-1">Nº Parcelas</label>
-                            <input type="number" class="form-control" id="parcelas" placeholder="—" min="2" disabled>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small text-muted mb-1">Tipo</label>
-                            <select class="form-select" id="tipoCompra" disabled>
-                                <option value="credito">Crédito</option>
-                                <option value="debito">Débito</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <button type="submit" class="btn btn-success w-100">Adicionar Despesa</button>
-                        </div>
-                    </div>
-                </form>
-
-                <!-- Toolbar de filtros + paginação -->
-                <div id="toolbarDespesas"></div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="pag-info" id="infoDespesas">—</span>
-                    <div class="d-flex align-items-center gap-2">
-                        <label class="pag-info mb-0">Linhas:</label>
-                        <select id="ippDespesas" class="form-select form-select-sm" style="width:70px;">
-                            <option value="10" selected>10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="table-wrapper table-responsive">
-                    <table class="table table-striped table-hover mb-0">
-                        <thead class="thead-fin" id="theadDespesas">
-                        </thead>
-                        <tbody id="tabelaDespesas"></tbody>
-                    </table>
-                </div>
-                <div class="d-flex justify-content-center mt-3">
-                    <nav><ul class="pagination pagination-sm mb-0" id="pagDespesas"></ul></nav>
-                </div>
-
-            </div>
+    <div class="sm-sb-footer">
+      <div class="sm-sb-user">
+        <div class="sm-sb-avatar">{{ session.user_nome[0]|upper }}</div>
+        <div class="sm-sb-user-info">
+          <div class="sm-sb-username">{{ session.user_nome }}</div>
+          <div class="sm-sb-userrole">{{ session.user_role }}</div>
         </div>
+      </div>
+      {% if session.user_role == 'admin' %}
+      <a href="{{ url_for('admin') }}" class="sm-nav-item" title="Admin">
+        <i class="ti ti-shield sm-nav-icon"></i><span class="sm-nav-label">Admin</span>
+      </a>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="sm-sb-logout" title="Sair">
+        <i class="ti ti-logout sm-nav-icon"></i><span class="sm-nav-label">Sair</span>
+      </a>
     </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="sm-content" id="sm-content">
+    <header class="sm-topbar">
+      <div class="sm-topbar-left">
+        <div class="sm-topbar-breadcrumb">
+          <span>Lançamentos</span>
+          <span>›</span>
+          <strong style="color:var(--text-primary)">Despesas</strong>
+        </div>
+      </div>
+      <div class="sm-topbar-right">
+        <div class="sm-topbar-user">
+          <div class="sm-topbar-avatar">{{ session.user_nome[0]|upper }}</div>
+          {{ session.user_nome }}
+        </div>
+      </div>
+    </header>
+    <main class="sm-main sm-animate">
+      <div class="sm-page-header">
+        <h1 class="sm-page-title">Despesas</h1>
+      </div>
+
+      <!-- Formulário -->
+      <div class="sm-card mb-4">
+        <div class="sm-card-header">
+          <div>
+            <div class="sm-card-title">Nova Despesa</div>
+            <div class="sm-card-subtitle">Para despesas recorrentes use <a href="{{ url_for('lancamentosAssinaturas') }}" style="color:var(--blue-700)">Assinaturas</a></div>
+          </div>
+        </div>
+        <div class="sm-card-body">
+          <form id="formDespesas">
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="sm-form-label">Descrição</label>
+                <input type="text" class="sm-form-control" id="descricao" placeholder="Ex: Supermercado, Combustível..." required>
+              </div>
+              <div class="col-md-3">
+                <label class="sm-form-label">Categoria</label>
+                <select id="categoriaDesp" class="sm-form-select"><option value="">Selecione...</option></select>
+              </div>
+              <div class="col-md-3">
+                <label class="sm-form-label">Cartão</label>
+                <select id="cartaoDesp" class="sm-form-select"><option value="">Selecione...</option></select>
+              </div>
+              <div class="col-md-2">
+                <label class="sm-form-label">Data</label>
+                <input type="date" class="sm-form-control" id="dataCompra">
+              </div>
+            </div>
+            <div class="row g-3 align-items-end">
+              <div class="col-md-3">
+                <label class="sm-form-label">Valor Total (R$)</label>
+                <input type="number" class="sm-form-control" id="valorTotal" placeholder="0,00" step="0.01" min="0.01">
+              </div>
+              <div class="col-md-2">
+                <label class="sm-form-label">Pagamento</label>
+                <select id="tipoPagamento" class="sm-form-select">
+                  <option value="avista">À vista</option>
+                  <option value="parcelado">Parcelado</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="sm-form-label">Nº Parcelas</label>
+                <input type="number" class="sm-form-control" id="parcelas" placeholder="—" min="2" disabled>
+              </div>
+              <div class="col-md-2">
+                <label class="sm-form-label">Tipo</label>
+                <select id="selectTipoCompra" class="sm-form-select" disabled style="background-color:var(--bg)">
+                  <option value="credito">Crédito</option>
+                  <option value="debito">Débito</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <button type="submit" class="sm-btn sm-btn-primary w-100">
+                  <i class="ti ti-plus"></i> Adicionar Despesa
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Tabela -->
+      <div class="sm-card">
+        <div class="sm-card-header">
+          <div id="toolbarDesp"></div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="sm-text-muted" style="font-size:.75rem" id="infoDesp">—</span>
+            <select id="ippDesp" class="sm-form-select" style="width:80px;height:30px;font-size:.78rem;padding:0 28px 0 8px;">
+              <option value="10">10</option><option value="25">25</option><option value="50">50</option>
+            </select>
+          </div>
+        </div>
+        <div class="sm-table-wrap">
+          <table class="sm-table">
+            <thead id="theadDesp"></thead>
+            <tbody id="tabelaDespesas"></tbody>
+          </table>
+        </div>
+        <div class="d-flex justify-content-center py-3">
+          <nav><ul class="pagination pagination-sm mb-0" id="pagDesp"></ul></nav>
+        </div>
+      </div>
+    </main>
+  </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editar-utils.js') }}"></script>
+
+<script>
+const SB_KEY = 'sm_sidebar';
+const sidebar   = document.getElementById('sm-sidebar');
+const content   = document.getElementById('sm-content');
+const toggleBtn = document.getElementById('sm-sb-toggle');
+const toggleIcon = document.getElementById('sm-sb-icon');
+
+function smToggleSidebar() {
+    const mini = sidebar.classList.toggle('mini');
+    content.classList.toggle('expanded', !mini);
+    toggleBtn.classList.toggle('mini', mini);
+    toggleIcon.innerHTML = mini
+        ? '<polyline points="9 18 15 12 9 6"></polyline>'
+        : '<polyline points="15 18 9 12 15 6"></polyline>';
+    localStorage.setItem(SB_KEY, mini ? 'mini' : 'open');
+}
+
+(function() {
+    const saved = localStorage.getItem(SB_KEY);
+    const isOpen = saved === 'open';
+    sidebar.classList.toggle('mini', !isOpen);
+    content.classList.toggle('expanded', isOpen);
+    toggleBtn.classList.toggle('mini', !isOpen);
+    toggleIcon.innerHTML = isOpen
+        ? '<polyline points="15 18 9 12 15 6"></polyline>'
+        : '<polyline points="9 18 15 12 9 6"></polyline>';
+})();
+</script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
@@ -375,16 +421,15 @@ document.addEventListener("DOMContentLoaded", () => {
             '<td class="text-center"><button class="btn btn-outline-danger btn-sm">Remover</button></td>';
 
         tr.querySelector("button").addEventListener("click", () => {
-            if (!confirm("Remover esta despesa?")) return;
-            fetch("/api/remover_lancamento", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({id: tr.dataset.id})
-            })
-            .then(r => r.json())
-            .then(d => {
-                if (d.success) pag.remover(tr);
-                else alert("Erro: " + (d.error || "desconhecido"));
+            WM.confirmar("Despesa removida", () => {
+                pag.remover(tr);
+                fetch("/api/remover_lancamento", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({id: tr.dataset.id})
+                })
+                .then(r => r.json())
+                .then(d => { if (!d.success) WM.erro("Erro: " + (d.error || "desconhecido")); });
             });
         });
 
@@ -415,14 +460,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const cartaoSel  = cartoesDisponiveis.find(c => c.id == cartaoId);
 
         if (!descricao || !categoria || !cartaoId || !valorTotal || !data) {
-            alert("Preencha todos os campos obrigatórios"); return;
+            WM.aviso("Preencha todos os campos obrigatórios"); return;
         }
-        if (!cartaoSel) { alert("Selecione um cartão válido"); return; }
+        if (!cartaoSel) { WM.aviso("Selecione um cartão válido"); return; }
         if (cartaoSel.tipo_pagamento === 'debito' && pagamento !== 'avista') {
-            alert("Cartão de débito deve ser à vista"); return;
+            WM.aviso("Cartão de débito deve ser à vista"); return;
         }
         if (pagamento === "parcelado" && (!parcelas || parseInt(parcelas) < 2)) {
-            alert("Parcelado exige mínimo 2 parcelas"); return;
+            WM.aviso("Parcelado exige mínimo 2 parcelas"); return;
         }
 
         fetch("/api/adicionar_lancamento", {
@@ -445,9 +490,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 selectTipoCompra.style.backgroundColor = '#e9ecef';
                 tipoPagamento.disabled = false; tipoPagamento.style.backgroundColor = '';
                 document.getElementById("dataCompra").value = new Date().toISOString().split('T')[0];
-            } else {
-                alert("Erro: " + (d.error || "desconhecido"));
-            }
+                WM.erro("Erro: " + (d.error || "desconhecido"));
         });
     });
 
@@ -504,10 +547,5 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 </script>
-    </div><!-- /sidebar-content -->
-</div><!-- /page-wrapper -->
-
-<script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
-<script src="{{ url_for('static', filename='js/editar-utils.js') }}"></script>
 </body>
 </html>

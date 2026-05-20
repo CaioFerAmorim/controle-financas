@@ -585,8 +585,10 @@ class TabelaManager {
             tr.addEventListener('mouseenter', () => { if (!tr._editando) tr.style.background = '#f0f7f0'; });
             tr.addEventListener('mouseleave', () => { if (!tr._editando) tr.style.background = '';       });
             tr.addEventListener('click', (e) => {
+                console.log('[TabelaManager] clique na linha, target:', e.target.tagName, e.target.closest('button, a, select, input'));
                 if (e.target.closest('button, a, select, input')) return;
-                this.onEditar(meta, tr);
+                console.log('[TabelaManager] chamando onEditar, meta:', meta);
+                try { this.onEditar(meta, tr); } catch(err) { console.error('[TabelaManager] erro no onEditar:', err); }
             });
         }
 

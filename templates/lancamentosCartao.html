@@ -2,172 +2,216 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Cartões - Controle de Finanças</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartões — Smart Money</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
-    <style>
-        /* ── Sidebar fixa que acompanha o conteúdo ─────────────── */
-        .page-wrapper {
-            display: flex;
-            min-height: calc(100vh - 98px); /* desconta o header */
-        }
-        .sidebar-nav {
-            width: 200px;
-            min-width: 200px;
-            flex-shrink: 0;
-        }
-        .sidebar-title {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .08em;
-            color: #adb5bd;
-            padding: 4px 12px 10px;
-        }
-        .sidebar-nav .nav-link {
-            font-size: 13px;
-            padding: 7px 12px;
-            border-radius: 6px;
-            color: rgba(255,255,255,.8) !important;
-            transition: background .15s, color .15s;
-        }
-        .sidebar-nav .nav-link:hover {
-            background: rgba(255,255,255,.1);
-            color: #fff !important;
-        }
-        .sidebar-nav .nav-link[aria-current="page"] {
-            background: rgba(255,255,255,.15);
-            color: #fff !important;
-            font-weight: 600;
-        }
-        .sidebar-content {
-            flex: 1;
-            min-width: 0;
-            padding: 1.5rem;
-        }
-
-        thead.thead-fin th { background:#1A4D2E; color:#fff; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; padding:10px 12px; border:none; white-space:nowrap; }
-        tbody tr td { font-size:13px; vertical-align:middle; }
-        .pag-info { font-size:12px; color:#6c757d; }
-        .table-wrapper { min-height:360px; }
-    </style>
+    
 </head>
-<body class="bg-light">
+<body>
+<div class="sm-shell">
 
-<header class="text-white py-3" style="background-color: #1A4D2E;">
-    <div class="container d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center">
-            <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
-                 alt="Logo" class="me-3" style="width:80px;height:80px;">
-            <div><h1 class="h5 mb-0">Controle de Finanças</h1><small>Gerencie seus gastos</small></div>
-        </div>
-        <nav>
-            <a href="{{ url_for('index') }}"       class="text-white text-decoration-none me-3">Início</a>
-            <a href="{{ url_for('lancamentos') }}" class="text-white text-decoration-none me-3">Lançamentos</a>
-            <a href="{{ url_for('projecoes') }}"   class="text-white text-decoration-none me-3">Projeções</a>
-            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none me-3">Visão Geral</a>
-            {% if session.user_role == 'admin' %}
-            <a href="{{ url_for('admin') }}" class="text-white text-decoration-none me-3" title="Admin">
-                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="opacity-75"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
-            </a>
-            {% endif %}
-            <span class="text-white opacity-75 small me-2">{{ session.user_nome }}</span>
-            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light py-1 px-2" style="font-size:12px;">Sair</a>
-        </nav>
-    </div>
-</header>
-
-<div class="page-wrapper">
-    <nav class="sidebar-nav bg-dark text-white p-3">
-        <div class="sidebar-title">Lançamentos</div>
-        <ul class="nav flex-column">
-            <li class="nav-item"><a href="{{ url_for('lancamentos') }}"            class="nav-link text-white">Despesas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosAssinaturas') }}" class="nav-link text-white">Assinaturas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosReceita') }}"     class="nav-link text-white">Receitas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosConta') }}"       class="nav-link text-white">Contas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosCartao') }}"      class="nav-link text-white" aria-current="page">Cartões</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosCategorias') }}"  class="nav-link text-white">Categorias</a></li>
-        </ul>
+  <!-- SIDEBAR -->
+  <aside class="sm-sidebar mini" id="sm-sidebar">
+    <button class="sm-sb-toggle mini" id="sm-sb-toggle" onclick="smToggleSidebar()" title="Expandir menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="sm-sb-icon">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+    <a class="sm-sb-logo" href="{{ url_for('index') }}">
+      <div class="sm-sb-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+      </div>
+      <div class="sm-sb-logo-text">
+        <div class="sm-sb-brand">Smart Money</div>
+        <div class="sm-sb-sub">Controle Financeiro</div>
+      </div>
+    </a>
+    <nav class="sm-sb-nav">
+      <div class="sm-sb-section">Principal</div>
+      <a href="{{ url_for('index') }}" class="sm-nav-item" title="Início">
+        <i class="ti ti-home sm-nav-icon"></i><span class="sm-nav-label">Início</span>
+      </a>
+      <a href="{{ url_for('projecoes') }}" class="sm-nav-item" title="Projeções">
+        <i class="ti ti-chart-line sm-nav-icon"></i><span class="sm-nav-label">Projeções</span>
+      </a>
+      <a href="{{ url_for('visaoGeral') }}" class="sm-nav-item" title="Visão Geral">
+        <i class="ti ti-chart-bar sm-nav-icon"></i><span class="sm-nav-label">Visão Geral</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Lançamentos</div>
+      <a href="{{ url_for('lancamentos') }}" class="sm-nav-item" title="Despesas">
+        <i class="ti ti-trending-down sm-nav-icon"></i><span class="sm-nav-label">Despesas</span>
+      </a>
+      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Assinaturas">
+        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Assinaturas</span>
+      </a>
+      <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
+        <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Cadastros</div>
+      <a href="{{ url_for('lancamentosConta') }}" class="sm-nav-item" title="Contas">
+        <i class="ti ti-building-bank sm-nav-icon"></i><span class="sm-nav-label">Contas</span>
+      </a>
+      <a href="{{ url_for('lancamentosCartao') }}" class="sm-nav-item active" title="Cartões">
+        <i class="ti ti-credit-card sm-nav-icon"></i><span class="sm-nav-label">Cartões</span>
+      </a>
+      <a href="{{ url_for('lancamentosCategorias') }}" class="sm-nav-item" title="Categorias">
+        <i class="ti ti-tag sm-nav-icon"></i><span class="sm-nav-label">Categorias</span>
+      </a>
     </nav>
-    <div class="sidebar-content">
-<div class="container mt-4">
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white">Cartões de Crédito / Débito</div>
-            <div class="card-body">
-
-                <form id="formCartoes" class="mb-4">
-                    <div class="row g-2 align-items-end">
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted">Nome do Cartão</label>
-                            <input type="text" class="form-control" id="nomeCartao" placeholder="Ex: Nubank, Itaú..." required>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small text-muted">Conta Vinculada</label>
-                            <select class="form-select" id="conta" required><option value="">Selecione...</option></select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small text-muted">Tipo</label>
-                            <select class="form-select" id="tipoPagamento" required>
-                                <option value="credito">Crédito</option>
-                                <option value="debito">Débito</option>
-                                <option value="multiplo">Múltiplo</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small text-muted">Dia Fechamento</label>
-                            <select class="form-select" id="diasFechamento"><option value="">—</option></select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small text-muted">Dia Vencimento</label>
-                            <select class="form-select" id="dataVencimento"><option value="">—</option></select>
-                        </div>
-                    </div>
-                    <div class="row g-2 mt-2 align-items-end">
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted">Limite R$</label>
-                            <input type="number" class="form-control" id="limite" placeholder="0,00" step="0.01" value="0">
-                        </div>
-                        <div class="col-md-5">
-                            <small class="text-muted">Para débito: limite zero e datas opcionais.</small>
-                        </div>
-                        <div class="col-md-4">
-                            <button type="submit" class="btn btn-success w-100">Adicionar Cartão</button>
-                        </div>
-                    </div>
-                </form>
-
-                <div id="toolbarCartoes"></div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="pag-info" id="infoCartoes">—</span>
-                    <div class="d-flex align-items-center gap-2">
-                        <label class="pag-info mb-0">Linhas:</label>
-                        <select id="ippCartoes" class="form-select form-select-sm" style="width:70px;">
-                            <option value="10" selected>10</option><option value="25">25</option><option value="50">50</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="table-wrapper table-responsive">
-                    <table class="table table-striped table-hover mb-0">
-                        <thead class="thead-fin" id="theadCartoes">
-                            <tr>
-                                <th>Nome</th><th>Conta</th><th>Tipo</th>
-                                <th class="text-center">Fechamento</th>
-                                <th class="text-center">Vencimento</th>
-                                <th class="text-end">Limite (R$)</th>
-                                <th class="text-center">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaCartoes"></tbody>
-                    </table>
-                </div>
-                <div class="d-flex justify-content-center mt-3">
-                    <nav><ul class="pagination pagination-sm mb-0" id="pagCartoes"></ul></nav>
-                </div>
-            </div>
+    <div class="sm-sb-footer">
+      <div class="sm-sb-user">
+        <div class="sm-sb-avatar">{{ session.user_nome[0]|upper }}</div>
+        <div class="sm-sb-user-info">
+          <div class="sm-sb-username">{{ session.user_nome }}</div>
+          <div class="sm-sb-userrole">{{ session.user_role }}</div>
         </div>
+      </div>
+      {% if session.user_role == 'admin' %}
+      <a href="{{ url_for('admin') }}" class="sm-nav-item" title="Admin">
+        <i class="ti ti-shield sm-nav-icon"></i><span class="sm-nav-label">Admin</span>
+      </a>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="sm-sb-logout" title="Sair">
+        <i class="ti ti-logout sm-nav-icon"></i><span class="sm-nav-label">Sair</span>
+      </a>
     </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="sm-content" id="sm-content">
+    <header class="sm-topbar">
+      <div class="sm-topbar-left">
+        <div class="sm-topbar-breadcrumb">
+          <span>Cadastros</span>
+          <span>›</span>
+          <strong style="color:var(--text-primary)">Cartões</strong>
+        </div>
+      </div>
+      <div class="sm-topbar-right">
+        <div class="sm-topbar-user">
+          <div class="sm-topbar-avatar">{{ session.user_nome[0]|upper }}</div>
+          {{ session.user_nome }}
+        </div>
+      </div>
+    </header>
+    <main class="sm-main sm-animate">
+      <div class="sm-page-header">
+        <h1 class="sm-page-title">Cartões</h1>
+      </div>
+
+      <div class="sm-card mb-4">
+        <div class="sm-card-header">
+          <div class="sm-card-title">Novo Cartão</div>
+        </div>
+        <div class="sm-card-body">
+          <form id="formCartoes">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-3">
+                <label class="sm-form-label">Nome do Cartão</label>
+                <input type="text" class="sm-form-control" id="nomeCartao" placeholder="Ex: Nubank, Inter..." required>
+              </div>
+              <div class="col-md-3">
+                <label class="sm-form-label">Conta Vinculada</label>
+                <select id="conta" class="sm-form-select"><option value="">Selecione...</option></select>
+              </div>
+              <div class="col-md-2">
+                <label class="sm-form-label">Tipo</label>
+                <select id="tipoPagamento" class="sm-form-select">
+                  <option value="credito">Crédito</option>
+                  <option value="debito">Débito</option>
+                  <option value="multiplo">Múltiplo</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="sm-form-label">Limite (R$)</label>
+                <input type="number" class="sm-form-control" id="limite" placeholder="0,00" step="0.01" min="0">
+              </div>
+              <div class="col-md-1">
+                <label class="sm-form-label">Vencimento</label>
+                <input type="number" class="sm-form-control" id="dataVencimento" placeholder="Dia" min="1" max="31">
+              </div>
+              <div class="col-md-1">
+                <label class="sm-form-label">Fechamento</label>
+                <input type="number" class="sm-form-control" id="diasFechamento" placeholder="Dias" min="1" max="30">
+              </div>
+            </div>
+            <div class="mt-3">
+              <button type="submit" class="sm-btn sm-btn-primary">
+                <i class="ti ti-plus"></i> Adicionar Cartão
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="sm-card">
+        <div class="sm-card-header">
+          <div class="sm-card-title">Cartões cadastrados</div>
+          <div class="d-flex align-items-center gap-2">
+            <div id="toolbarCartoes"></div>
+            <span class="sm-text-muted" style="font-size:.75rem" id="infoCartoes">—</span>
+            <select id="ippCartoes" class="sm-form-select" style="width:80px;height:30px;font-size:.78rem;padding:0 28px 0 8px;">
+              <option value="10">10</option><option value="25">25</option><option value="50">50</option>
+            </select>
+          </div>
+        </div>
+        <div class="sm-table-wrap">
+          <table class="sm-table">
+            <thead id="theadCartoes"></thead>
+            <tbody id="tabelaCartoes"></tbody>
+          </table>
+        </div>
+        <div class="d-flex justify-content-center py-3">
+          <nav><ul class="pagination pagination-sm mb-0" id="pagCartoes"></ul></nav>
+        </div>
+      </div>
+    </main>
+  </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editar-utils.js') }}"></script>
+
+<script>
+const SB_KEY = 'sm_sidebar';
+const sidebar   = document.getElementById('sm-sidebar');
+const content   = document.getElementById('sm-content');
+const toggleBtn = document.getElementById('sm-sb-toggle');
+const toggleIcon = document.getElementById('sm-sb-icon');
+
+function smToggleSidebar() {
+    const mini = sidebar.classList.toggle('mini');
+    content.classList.toggle('expanded', !mini);
+    toggleBtn.classList.toggle('mini', mini);
+    toggleIcon.innerHTML = mini
+        ? '<polyline points="9 18 15 12 9 6"></polyline>'
+        : '<polyline points="15 18 9 12 15 6"></polyline>';
+    localStorage.setItem(SB_KEY, mini ? 'mini' : 'open');
+}
+
+(function() {
+    const saved = localStorage.getItem(SB_KEY);
+    const isOpen = saved === 'open';
+    sidebar.classList.toggle('mini', !isOpen);
+    content.classList.toggle('expanded', isOpen);
+    toggleBtn.classList.toggle('mini', !isOpen);
+    toggleIcon.innerHTML = isOpen
+        ? '<polyline points="15 18 9 12 15 6"></polyline>'
+        : '<polyline points="9 18 15 12 9 6"></polyline>';
+})();
+</script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -260,9 +304,11 @@ document.addEventListener("DOMContentLoaded", function () {
             <td class="text-end">R$ ${lim}</td>
             <td class="text-center"><button class="btn btn-outline-danger btn-sm">Remover</button></td>`;
         tr.querySelector("button").addEventListener("click", () => {
-            if (!confirm(`Remover o cartão "${nome}"?`)) return;
-            fetch("/api/remover_cartao", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) })
-                .then(r=>r.json()).then(d=>{ if(d.success) pag.remover(tr); else alert("Erro: "+(d.error||"")); });
+            WM.confirmar(`Cartão "${nome}" removido`, () => {
+                pag.remover(tr);
+                fetch("/api/remover_cartao", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) })
+                    .then(r=>r.json()).then(d=>{ if(!d.success) WM.erro("Erro ao remover: "+(d.error||"")); });
+            });
         });
         pag.adicionar(tr, {
             nome:       nome,
@@ -284,14 +330,14 @@ document.addEventListener("DOMContentLoaded", function () {
         const limite       = parseFloat(inputLimite.value)||0;
         const conta_nome   = selectConta.options[selectConta.selectedIndex].text;
 
-        if (!nome || !contaId || !tipo) { alert("Preencha nome, conta e tipo"); return; }
-        if (tipo !== 'debito' && (!vencimento || !fechamento)) { alert("Para crédito, informe dias de fechamento e vencimento"); return; }
+        if (!nome || !contaId || !tipo) { WM.aviso("Preencha nome, conta e tipo"); return; }
+        if (tipo !== 'debito' && (!vencimento || !fechamento)) { WM.aviso("Para crédito, informe dias de fechamento e vencimento"); return; }
 
         fetch("/api/adicionar_cartao", { method:"POST", headers:{"Content-Type":"application/json"},
             body: JSON.stringify({nome, conta:contaId, tipo_pagamento:tipo, data_vencimento:vencimento, dias_fechamento:fechamento, limite})
         }).then(r=>r.json()).then(d=>{
             if(d.success) { addCartao(d.id, nome, conta_nome, tipo, fechamento, vencimento, limite); document.getElementById("formCartoes").reset(); inputLimite.disabled=false; inputLimite.style.backgroundColor=''; }
-            else alert("Erro: "+(d.error||""));
+            else WM.erro("Erro: "+(d.error||""));
         });
     });
 
@@ -338,11 +384,5 @@ document.addEventListener("DOMContentLoaded", function () {
     {% endfor %}
 });
 </script>
-    </div><!-- /sidebar-content -->
-</div><!-- /page-wrapper -->
-
-<script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
-<script src="{{ url_for('static', filename='js/editar-utils.js') }}"></script>
-
 </body>
 </html>

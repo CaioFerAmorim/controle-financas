@@ -43,14 +43,14 @@ class EditorPanel {
             </div>
             <div class="offcanvas-body" id="${this.id}Body"></div>
             <div class="offcanvas-footer border-top p-3 d-flex gap-2 justify-content-end bg-white">
-                <button class="btn btn-sm btn-outline-secondary" data-bs-dismiss="offcanvas">Cancelar</button>
-                <button class="btn btn-sm text-white" id="${this.id}BtnSalvar"
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="offcanvas">Cancelar</button>
+                <button type="button" class="btn btn-sm text-white" id="${this.id}BtnSalvar"
                         style="background:#1A4D2E;border:none;min-width:90px;">Salvar</button>
             </div>`;
 
         document.body.appendChild(el);
         this._el = el;
-        this._offcanvas = new bootstrap.Offcanvas(el);
+        this._offcanvas = null; // inicializado lazy no primeiro abrir()
 
         el.querySelector(`#${this.id}BtnSalvar`).addEventListener('click', () => this._salvar());
 
@@ -63,6 +63,10 @@ class EditorPanel {
 
     // ── Abre o painel com a configuração passada ─────────────────
     abrir({ titulo, campos, onSalvar }) {
+        // Inicializa o Offcanvas na primeira chamada (Bootstrap já está carregado aqui)
+        if (!this._offcanvas) {
+            this._offcanvas = new bootstrap.Offcanvas(this._el);
+        }
         this._onSalvar = onSalvar;
 
         // Título
@@ -157,6 +161,7 @@ class EditorPanel {
         });
 
         body.appendChild(form);
+        form.addEventListener('submit', (e) => { e.preventDefault(); this._salvar(); });
         this._offcanvas.show();
     }
 
@@ -211,8 +216,8 @@ function apiAtualizar(url, dados) {
     })
     .then(r => r.json())
     .then(d => {
-        if (!d.success) { alert('Erro ao salvar: ' + (d.error || 'desconhecido')); return false; }
+        if (!d.success) { WM.erro('Erro ao salvar: ' + (d.error || 'desconhecido')); return false; }
         return true;
     })
-    .catch(() => { alert('Erro de conexão.'); return false; });
+    .catch(() => { WM.erro('Erro de conexão.'); return false; });
 }
