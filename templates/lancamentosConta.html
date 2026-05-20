@@ -10,6 +10,25 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
+<script>
+  // Aplica estado da sidebar antes do primeiro paint — evita flash
+  (function() {
+    if (localStorage.getItem('sm_sidebar') === 'open') {
+      document.documentElement.setAttribute('data-sb', 'open');
+    }
+  })();
+</script>
+<style>
+  /* Estado inicial da sidebar via atributo — sem flash e sem animação */
+  html[data-sb="open"] .sm-sidebar,
+  html[data-sb="open"] .sm-content,
+  html[data-sb="open"] .sm-sb-toggle,
+  html[data-sb="open"] #sm-sb-icon        { transition: none !important; }
+  html[data-sb="open"] .sm-sidebar        { width: var(--sidebar-w); }
+  html[data-sb="open"] .sm-content        { margin-left: var(--sidebar-w); }
+  html[data-sb="open"] .sm-sb-toggle      { left: calc(var(--sidebar-w) - 13px); }
+  html[data-sb="open"] #sm-sb-icon        { transform: rotate(180deg); }
+</style>
 </head>
 <body>
 <div class="sm-shell">
@@ -18,7 +37,7 @@
   <aside class="sm-sidebar mini" id="sm-sidebar">
 
     <!-- Toggle -->
-    <button class="sm-sb-toggle mini" id="sm-sb-toggle" onclick="smToggleSidebar()" title="Expandir menu">
+    <button class="sm-sb-toggle" id="sm-sb-toggle" onclick="smToggleSidebar()" title="Expandir menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="sm-sb-icon">
         <polyline points="9 18 15 12 9 6"></polyline>
       </svg>
@@ -70,6 +89,9 @@
         <span class="sm-nav-label">Receitas</span>
       </a>
 
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
+      </a>
       <div class="sm-nav-divider"></div>
       <div class="sm-sb-section">Cadastros</div>
 
@@ -219,16 +241,15 @@ function smToggleSidebar() {
     localStorage.setItem(SB_KEY, mini ? 'mini' : 'open');
 }
 
-// Restaurar estado salvo e sincronizar botão
+// Restaurar estado salvo
 (function() {
     const saved = localStorage.getItem(SB_KEY);
-    const isOpen = saved === 'open';
-    sidebar.classList.toggle('mini', !isOpen);
-    content.classList.toggle('expanded', isOpen);
-    toggleBtn.classList.toggle('mini', !isOpen);
-    toggleIcon.innerHTML = isOpen
-        ? '<polyline points="15 18 9 12 15 6"></polyline>'
-        : '<polyline points="9 18 15 12 9 6"></polyline>';
+    if (saved === 'open') {
+        sidebar.classList.remove('mini');
+        content.classList.add('expanded');
+        toggleBtn.classList.remove('mini');
+        toggleIcon.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline>';
+    }
 })();
 
 // ── App ───────────────────────────────────────────────────────────

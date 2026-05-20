@@ -37,15 +37,18 @@ class EditorPanel {
         el.style.width = '380px';
 
         el.innerHTML = `
-            <div class="offcanvas-header" style="background:#1A4D2E;color:#fff;">
-                <h6 class="offcanvas-title mb-0" id="${this.id}Label" style="font-weight:600;"></h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+            <div class="offcanvas-header" style="background:var(--blue-800,#0f2d5e);color:#fff;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.1);">
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                    <h6 class="offcanvas-title mb-0" id="${this.id}Label" style="font-weight:700;font-size:.9rem;letter-spacing:-.2px;font-family:'DM Sans',sans-serif;"></h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" style="opacity:.7"></button>
             </div>
-            <div class="offcanvas-body" id="${this.id}Body"></div>
-            <div class="offcanvas-footer border-top p-3 d-flex gap-2 justify-content-end bg-white">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="offcanvas">Cancelar</button>
+            <div class="offcanvas-body" id="${this.id}Body" style="padding:20px;background:#f4f6fb;font-family:'DM Sans',sans-serif;"></div>
+            <div class="offcanvas-footer" style="border-top:1px solid #e2e8f2;padding:14px 20px;display:flex;gap:8px;justify-content:flex-end;background:#fff;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="offcanvas"
+                        style="font-family:'DM Sans',sans-serif;font-size:.82rem;border-radius:8px;padding:6px 14px;">Cancelar</button>
                 <button type="button" class="btn btn-sm text-white" id="${this.id}BtnSalvar"
-                        style="background:#1A4D2E;border:none;min-width:90px;">Salvar</button>
+                        style="background:var(--blue-800,#0f2d5e);border:none;min-width:90px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;padding:6px 16px;">Salvar</button>
             </div>`;
 
         document.body.appendChild(el);
@@ -82,10 +85,10 @@ class EditorPanel {
 
         campos.forEach(campo => {
             const wrap = document.createElement('div');
-            wrap.className = 'mb-3';
+            wrap.className = 'mb-3'; wrap.style.cssText = 'margin-bottom:16px;';
 
             const label = document.createElement('label');
-            label.className = 'form-label small fw-semibold text-muted';
+            label.style.cssText = 'display:block;font-size:.68rem;font-weight:700;color:#8394ae;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-family:DM Sans,sans-serif;';
             label.textContent = campo.label + (campo.required ? ' *' : '');
             wrap.appendChild(label);
 
@@ -93,7 +96,7 @@ class EditorPanel {
 
             if (campo.tipo === 'select') {
                 input = document.createElement('select');
-                input.className = 'form-select form-select-sm';
+                input.className = 'form-select form-select-sm'; input.style.cssText = 'border-radius:8px;border:1.5px solid #e2e8f2;font-family:DM Sans,sans-serif;font-size:.86rem;height:36px;';
                 (campo.opcoes || []).forEach(op => {
                     const o = document.createElement('option');
                     if (typeof op === 'object') {
@@ -108,13 +111,13 @@ class EditorPanel {
 
             } else if (campo.tipo === 'textarea') {
                 input = document.createElement('textarea');
-                input.className = 'form-control form-control-sm';
+                input.className = 'form-control form-control-sm'; input.style.cssText = 'border-radius:8px;border:1.5px solid #e2e8f2;font-family:DM Sans,sans-serif;font-size:.86rem;height:36px;';
                 input.rows = campo.rows || 3;
                 input.value = campo.valor || '';
 
             } else if (campo.tipo === 'readonly') {
                 input = document.createElement('input');
-                input.className = 'form-control form-control-sm bg-light';
+                input.className = 'form-control form-control-sm bg-light'; input.style.cssText = 'border-radius:8px;border:1.5px solid #e2e8f2;font-family:DM Sans,sans-serif;font-size:.86rem;height:36px;background:#f4f6fb;';
                 input.type = 'text';
                 input.value = campo.valor || '';
                 input.readOnly = true;
@@ -148,11 +151,11 @@ class EditorPanel {
 
             // Foco verde
             input.addEventListener('focus', () => {
-                input.style.borderColor = '#1A4D2E';
-                input.style.boxShadow   = '0 0 0 3px rgba(26,77,46,.15)';
+                input.style.borderColor = '#2451a3';
+                input.style.boxShadow   = '0 0 0 3px rgba(36,81,163,.12)';
             });
             input.addEventListener('blur', () => {
-                input.style.borderColor = '';
+                input.style.borderColor = '#e2e8f2';
                 input.style.boxShadow   = '';
             });
 
@@ -161,7 +164,6 @@ class EditorPanel {
         });
 
         body.appendChild(form);
-        form.addEventListener('submit', (e) => { e.preventDefault(); this._salvar(); });
         this._offcanvas.show();
     }
 

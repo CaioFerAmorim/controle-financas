@@ -845,6 +845,12 @@ def lancamentosReceita():
         receitas = [list(r) for r in c.fetchall()]
     return render_template('lancamentosReceita.html', receitas=receitas)
 
+
+@app.route('/lancamentosReceitaFixa')
+@login_required
+def lancamentosReceitaFixa():
+    return render_template('lancamentosReceitaFixa.html')
+
 @app.route('/lancamentosAssinaturas')
 @login_required
 def lancamentosAssinaturas():

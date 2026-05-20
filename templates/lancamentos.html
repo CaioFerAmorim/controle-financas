@@ -10,12 +10,27 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
-    
+<script>
+  (function() {
+    if (localStorage.getItem('sm_sidebar') === 'open') {
+      document.documentElement.setAttribute('data-sb', 'open');
+    }
+  })();
+</script>
+<style>
+  html[data-sb="open"] .sm-sidebar,
+  html[data-sb="open"] .sm-content,
+  html[data-sb="open"] .sm-sb-toggle,
+  html[data-sb="open"] #sm-sb-icon { transition: none !important; }
+  html[data-sb="open"] .sm-sidebar  { width: var(--sidebar-w); }
+  html[data-sb="open"] .sm-content  { margin-left: var(--sidebar-w); }
+  html[data-sb="open"] .sm-sb-toggle { left: calc(var(--sidebar-w) - 13px); }
+  html[data-sb="open"] #sm-sb-icon  { transform: rotate(180deg); }
+</style>
 </head>
 <body>
 <div class="sm-shell">
 
-  <!-- SIDEBAR -->
   <aside class="sm-sidebar mini" id="sm-sidebar">
     <button class="sm-sb-toggle mini" id="sm-sb-toggle" onclick="smToggleSidebar()" title="Expandir menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="sm-sb-icon">
@@ -56,6 +71,9 @@
       <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
         <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
       </a>
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
+      </a>
       <div class="sm-nav-divider"></div>
       <div class="sm-sb-section">Cadastros</div>
       <a href="{{ url_for('lancamentosConta') }}" class="sm-nav-item" title="Contas">
@@ -87,13 +105,11 @@
     </div>
   </aside>
 
-  <!-- CONTENT -->
   <div class="sm-content" id="sm-content">
     <header class="sm-topbar">
       <div class="sm-topbar-left">
         <div class="sm-topbar-breadcrumb">
-          <span>Lançamentos</span>
-          <span>›</span>
+          <span>Lançamentos</span><span>›</span>
           <strong style="color:var(--text-primary)">Despesas</strong>
         </div>
       </div>
@@ -104,33 +120,29 @@
         </div>
       </div>
     </header>
+
     <main class="sm-main sm-animate">
       <div class="sm-page-header">
         <h1 class="sm-page-title">Despesas</h1>
+        <p class="sm-page-subtitle">Para despesas recorrentes use <a href="{{ url_for('lancamentosAssinaturas') }}" style="color:var(--blue-600)">Assinaturas</a></p>
       </div>
 
       <!-- Formulário -->
       <div class="sm-card mb-4">
-        <div class="sm-card-header">
-          <div>
-            <div class="sm-card-title">Nova Despesa</div>
-            <div class="sm-card-subtitle">Para despesas recorrentes use <a href="{{ url_for('lancamentosAssinaturas') }}" style="color:var(--blue-700)">Assinaturas</a></div>
-          </div>
-        </div>
         <div class="sm-card-body">
           <form id="formDespesas">
             <div class="row g-3 mb-3">
               <div class="col-md-4">
                 <label class="sm-form-label">Descrição</label>
-                <input type="text" class="sm-form-control" id="descricao" placeholder="Ex: Supermercado, Combustível..." required>
+                <input type="text" class="sm-form-control" id="compra" placeholder="Ex: Supermercado, Combustível..." required>
               </div>
               <div class="col-md-3">
                 <label class="sm-form-label">Categoria</label>
-                <select id="categoriaDesp" class="sm-form-select"><option value="">Selecione...</option></select>
+                <select id="categoria" class="sm-form-select"><option value="">Selecione...</option></select>
               </div>
               <div class="col-md-3">
                 <label class="sm-form-label">Cartão</label>
-                <select id="cartaoDesp" class="sm-form-select"><option value="">Selecione...</option></select>
+                <select id="cartao" class="sm-form-select"><option value="">Selecione...</option></select>
               </div>
               <div class="col-md-2">
                 <label class="sm-form-label">Data</label>
@@ -140,7 +152,7 @@
             <div class="row g-3 align-items-end">
               <div class="col-md-3">
                 <label class="sm-form-label">Valor Total (R$)</label>
-                <input type="number" class="sm-form-control" id="valorTotal" placeholder="0,00" step="0.01" min="0.01">
+                <input type="number" class="sm-form-control" id="valor" placeholder="0,00" step="0.01" min="0.01">
               </div>
               <div class="col-md-2">
                 <label class="sm-form-label">Pagamento</label>
@@ -155,7 +167,7 @@
               </div>
               <div class="col-md-2">
                 <label class="sm-form-label">Tipo</label>
-                <select id="selectTipoCompra" class="sm-form-select" disabled style="background-color:var(--bg)">
+                <select id="tipoCompra" class="sm-form-select" disabled style="background-color:var(--bg)">
                   <option value="credito">Crédito</option>
                   <option value="debito">Débito</option>
                 </select>
@@ -173,24 +185,25 @@
       <!-- Tabela -->
       <div class="sm-card">
         <div class="sm-card-header">
-          <div id="toolbarDesp"></div>
+          <div id="toolbarDespesas"></div>
           <div class="d-flex align-items-center gap-2">
-            <span class="sm-text-muted" style="font-size:.75rem" id="infoDesp">—</span>
-            <select id="ippDesp" class="sm-form-select" style="width:80px;height:30px;font-size:.78rem;padding:0 28px 0 8px;">
+            <span class="sm-text-muted" style="font-size:.75rem" id="infoDespesas">—</span>
+            <select id="ippDespesas" class="sm-form-select" style="width:80px;height:30px;font-size:.78rem;padding:0 28px 0 8px;">
               <option value="10">10</option><option value="25">25</option><option value="50">50</option>
             </select>
           </div>
         </div>
         <div class="sm-table-wrap">
           <table class="sm-table">
-            <thead id="theadDesp"></thead>
+            <thead id="theadDespesas"></thead>
             <tbody id="tabelaDespesas"></tbody>
           </table>
         </div>
         <div class="d-flex justify-content-center py-3">
-          <nav><ul class="pagination pagination-sm mb-0" id="pagDesp"></ul></nav>
+          <nav><ul class="pagination pagination-sm mb-0" id="pagDespesas"></ul></nav>
         </div>
       </div>
+
     </main>
   </div>
 </div>
@@ -202,9 +215,9 @@
 
 <script>
 const SB_KEY = 'sm_sidebar';
-const sidebar   = document.getElementById('sm-sidebar');
-const content   = document.getElementById('sm-content');
-const toggleBtn = document.getElementById('sm-sb-toggle');
+const sidebar    = document.getElementById('sm-sidebar');
+const content    = document.getElementById('sm-content');
+const toggleBtn  = document.getElementById('sm-sb-toggle');
 const toggleIcon = document.getElementById('sm-sb-icon');
 
 function smToggleSidebar() {
@@ -216,16 +229,15 @@ function smToggleSidebar() {
         : '<polyline points="15 18 9 12 15 6"></polyline>';
     localStorage.setItem(SB_KEY, mini ? 'mini' : 'open');
 }
-
 (function() {
-    const saved = localStorage.getItem(SB_KEY);
-    const isOpen = saved === 'open';
+    const isOpen = localStorage.getItem(SB_KEY) === 'open';
     sidebar.classList.toggle('mini', !isOpen);
     content.classList.toggle('expanded', isOpen);
     toggleBtn.classList.toggle('mini', !isOpen);
     toggleIcon.innerHTML = isOpen
         ? '<polyline points="15 18 9 12 15 6"></polyline>'
         : '<polyline points="9 18 15 12 9 6"></polyline>';
+    document.documentElement.removeAttribute('data-sb');
 })();
 </script>
 
@@ -490,7 +502,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 selectTipoCompra.style.backgroundColor = '#e9ecef';
                 tipoPagamento.disabled = false; tipoPagamento.style.backgroundColor = '';
                 document.getElementById("dataCompra").value = new Date().toISOString().split('T')[0];
+            } else {
                 WM.erro("Erro: " + (d.error || "desconhecido"));
+            }
         });
     });
 

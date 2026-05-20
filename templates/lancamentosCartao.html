@@ -11,6 +11,25 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
     
+<script>
+  // Aplica estado da sidebar antes do primeiro paint — evita flash
+  (function() {
+    if (localStorage.getItem('sm_sidebar') === 'open') {
+      document.documentElement.setAttribute('data-sb', 'open');
+    }
+  })();
+</script>
+<style>
+  /* Estado inicial da sidebar via atributo — sem flash e sem animação */
+  html[data-sb="open"] .sm-sidebar,
+  html[data-sb="open"] .sm-content,
+  html[data-sb="open"] .sm-sb-toggle,
+  html[data-sb="open"] #sm-sb-icon        { transition: none !important; }
+  html[data-sb="open"] .sm-sidebar        { width: var(--sidebar-w); }
+  html[data-sb="open"] .sm-content        { margin-left: var(--sidebar-w); }
+  html[data-sb="open"] .sm-sb-toggle      { left: calc(var(--sidebar-w) - 13px); }
+  html[data-sb="open"] #sm-sb-icon        { transform: rotate(180deg); }
+</style>
 </head>
 <body>
 <div class="sm-shell">
@@ -55,6 +74,9 @@
       </a>
       <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
         <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
+      </a>
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
       </a>
       <div class="sm-nav-divider"></div>
       <div class="sm-sb-section">Cadastros</div>
@@ -202,14 +224,15 @@ function smToggleSidebar() {
 }
 
 (function() {
-    const saved = localStorage.getItem(SB_KEY);
-    const isOpen = saved === 'open';
+    const isOpen = localStorage.getItem(SB_KEY) === 'open';
     sidebar.classList.toggle('mini', !isOpen);
     content.classList.toggle('expanded', isOpen);
     toggleBtn.classList.toggle('mini', !isOpen);
     toggleIcon.innerHTML = isOpen
         ? '<polyline points="15 18 9 12 15 6"></polyline>'
         : '<polyline points="9 18 15 12 9 6"></polyline>';
+    // Remove atributo após JS assumir controle
+    document.documentElement.removeAttribute('data-sb');
 })();
 </script>
 

@@ -2,53 +2,66 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Login - Controle de Finanças</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Smart Money</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
     <style>
-        body { background: #f0f4f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .auth-card { background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.10); padding: 40px 36px; width: 100%; max-width: 400px; }
-        .auth-logo { width: 70px; height: 70px; }
-        .btn-primary-green { background: #1A4D2E; border: none; color: #fff; width: 100%; padding: 10px; border-radius: 8px; font-weight: 500; transition: background .2s; }
-        .btn-primary-green:hover { background: #143d25; color: #fff; }
-        .form-control:focus { border-color: #1A4D2E; box-shadow: 0 0 0 3px rgba(26,77,46,.15); }
-        .link-green { color: #1A4D2E; text-decoration: none; }
-        .link-green:hover { text-decoration: underline; }
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'DM Sans',system-ui,sans-serif;background:#f4f6fb;display:flex;align-items:center;justify-content:center;min-height:100vh;-webkit-font-smoothing:antialiased}
+        .auth-wrap{width:100%;max-width:400px;padding:16px}
+        .auth-card{background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(15,45,94,.10);padding:40px 36px}
+        .auth-logo-icon{width:44px;height:44px;background:#0f2d5e;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+        .auth-logo-icon svg{width:22px;height:22px}
+        .auth-title{font-size:1.15rem;font-weight:700;color:#0f1f3d;text-align:center;letter-spacing:-.3px}
+        .auth-sub{font-size:.78rem;color:#8394ae;text-align:center;margin-top:4px;margin-bottom:24px}
+        .form-label{display:block;font-size:.68rem;font-weight:700;color:#8394ae;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+        .form-control{width:100%;height:40px;padding:0 12px;border:1.5px solid #e2e8f2;border-radius:10px;font-family:inherit;font-size:.9rem;color:#0f1f3d;background:#fff;outline:none;transition:border-color .15s,box-shadow .15s;margin-bottom:16px}
+        .form-control:focus{border-color:#2451a3;box-shadow:0 0 0 3px rgba(36,81,163,.1)}
+        .form-control::placeholder{color:#b0bdd0;font-size:.84rem}
+        .btn-primary{width:100%;height:42px;background:#0f2d5e;color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:background .15s;margin-top:4px}
+        .btn-primary:hover{background:#1a3f7a}
+        hr{border:none;border-top:1px solid #f0f3f8;margin:24px 0}
+        .auth-footer{font-size:.78rem;color:#8394ae;text-align:center}
+        .auth-footer a{color:#2451a3;text-decoration:none;font-weight:600}
+        .auth-footer a:hover{text-decoration:underline}
+        .alert{padding:10px 14px;border-radius:8px;font-size:.8rem;margin-bottom:16px}
+        .alert-danger{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+        .alert-warning{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+        .alert-success{background:#dcfce7;color:#166534;border:1px solid #86efac}
+        .alert-info{background:#e0f2fe;color:#0c4a6e;border:1px solid #7dd3fc}
     </style>
 </head>
 <body>
-    <div class="auth-card">
-        <div class="text-center mb-4">
-            <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
-                 alt="Logo" class="auth-logo mb-2">
-            <h4 class="mb-0" style="color:#1A4D2E;font-weight:700;">Controle de Finanças</h4>
-            <small class="text-muted">Faça login para continuar</small>
-        </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, message in messages %}
-        <div class="alert alert-{{ category }} py-2 small">{{ message }}</div>
-        {% endfor %}
-        {% endwith %}
-
-        <form method="POST" action="{{ url_for('login') }}">
-            <div class="mb-3">
-                <label class="form-label small fw-semibold text-muted">Email</label>
-                <input type="email" name="email" class="form-control" placeholder="seu@email.com"
-                       autocomplete="email" required autofocus>
-            </div>
-            <div class="mb-4">
-                <label class="form-label small fw-semibold text-muted">Senha</label>
-                <input type="password" name="senha" class="form-control" placeholder="••••••••"
-                       autocomplete="current-password" required>
-            </div>
-            <button type="submit" class="btn btn-primary-green">Entrar</button>
-        </form>
-
-        <hr class="my-4">
-        <p class="text-center text-muted small mb-0">
-            Não tem conta? <a href="{{ url_for('cadastro') }}" class="link-green fw-semibold">Cadastre-se</a>
-        </p>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23"></line>
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+      </svg>
     </div>
+    <div class="auth-title">Smart Money</div>
+    <div class="auth-sub">Faça login para continuar</div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+      <label class="form-label">Email</label>
+      <input type="email" name="email" class="form-control" placeholder="seu@email.com" autocomplete="email" required autofocus>
+      <label class="form-label">Senha</label>
+      <input type="password" name="senha" class="form-control" placeholder="••••••••" autocomplete="current-password" required style="margin-bottom:0">
+      <button type="submit" class="btn-primary">Entrar</button>
+    </form>
+
+    <hr>
+    <p class="auth-footer">Não tem conta? <a href="{{ url_for('cadastro') }}">Cadastre-se</a></p>
+  </div>
+</div>
 </body>
 </html>

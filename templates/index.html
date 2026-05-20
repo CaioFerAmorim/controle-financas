@@ -2,12 +2,61 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Controle de Finanças</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Início — Smart Money</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
+        /* ── Abas de cartão ── */
+        .nav-tabs-cartao { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:20px; }
+        .nav-tabs-cartao .nav-link {
+            padding:6px 14px; border-radius:8px; font-size:.8rem; font-weight:500;
+            color:var(--text-secondary); background:var(--surface);
+            border:1px solid var(--border); text-decoration:none;
+            transition:all .15s; display:flex; align-items:center; gap:6px;
+        }
+        .nav-tabs-cartao .nav-link:hover  { background:var(--blue-50); color:var(--blue-800); border-color:var(--blue-100); }
+        .nav-tabs-cartao .nav-link.active { background:var(--blue-800); color:#fff; border-color:var(--blue-800); }
+        .badge-cartao { font-size:.62rem; background:rgba(255,255,255,.2); padding:1px 6px; border-radius:10px; }
+        .nav-link:not(.active) .badge-cartao { background:var(--blue-100); color:var(--blue-800); }
+
+        /* ── Cards KPI ── */
+        .kpi-card { position:relative; overflow:hidden; }
+        .kpi-card::after { content:''; position:absolute; top:0; left:0; width:4px; height:100%; border-radius:4px 0 0 4px; }
+        .kpi-card.green::after { background:var(--green); }
+        .kpi-card.amber::after { background:var(--amber); }
+        .kpi-card.blue::after  { background:var(--blue-600); }
+        .kpi-card.teal::after  { background:#0891b2; }
+        .kpi-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+        .kpi-value { font-size:1.5rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
+        .positive { color:var(--green); }
+        .negative { color:var(--red); }
+
+        /* ── Fatura info bar ── */
+        .fatura-info-bar {
+            background:var(--blue-50); border:1px solid var(--blue-100); border-radius:8px;
+            padding:8px 14px; font-size:.78rem; color:var(--text-secondary);
+            margin-bottom:16px;
+        }
+
+        /* ── Projeção cards ── */
+        .proj-card { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; min-width:160px; flex:1; box-shadow:var(--shadow); }
+        .proj-header { padding:10px 12px; display:flex; justify-content:space-between; align-items:center; }
+        .proj-pill { font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:10px; }
+        .proj-body { padding:10px 12px; }
+        .proj-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:.75rem; }
+        .proj-label { display:flex; align-items:center; gap:5px; color:var(--text-muted); }
+        .proj-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+        .proj-saldo { display:flex; justify-content:space-between; border-top:1px solid var(--border); padding-top:8px; margin-top:4px; }
+        .proj-saldo-label { font-size:.75rem; font-weight:600; color:var(--text-secondary); }
+        .proj-saldo-val { font-size:.82rem; font-weight:700; }
+
+        
         .page-wrapper { display:flex; min-height:calc(100vh - 98px); }
         .sidebar-nav  { width:200px; min-width:200px; flex-shrink:0; }
         .sidebar-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#adb5bd; padding:4px 12px 10px; }
@@ -18,8 +67,8 @@
 
         .card-dashboard { transition:transform .2s; border:none; box-shadow:0 4px 6px rgba(0,0,0,.1); }
         .card-dashboard:hover { transform:translateY(-5px); }
-        .positive { color:#28a745; }
-        .negative { color:#dc3545; }
+        ._pos { color:#28a745; }
+        ._neg { color:#dc3545; }
         .quick-action-btn { transition:all .3s; }
         .quick-action-btn:hover { transform:scale(1.05); }
 
@@ -65,312 +114,370 @@
 
         /* Info fatura cartão */
         .fatura-info-bar { background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; padding:10px 16px; margin-bottom:1.5rem; font-size:13px; }
+    
+        /* Override positive/negative para usar vars */
+        .positive { color: var(--green) !important; }
+        .negative { color: var(--red) !important; }
     </style>
+<script>
+  // Aplica estado da sidebar antes do primeiro paint — evita flash
+  (function() {
+    if (localStorage.getItem('sm_sidebar') === 'open') {
+      document.documentElement.setAttribute('data-sb', 'open');
+    }
+  })();
+</script>
+<style>
+  /* Estado inicial da sidebar via atributo — sem flash e sem animação */
+  html[data-sb="open"] .sm-sidebar,
+  html[data-sb="open"] .sm-content,
+  html[data-sb="open"] .sm-sb-toggle,
+  html[data-sb="open"] #sm-sb-icon        { transition: none !important; }
+  html[data-sb="open"] .sm-sidebar        { width: var(--sidebar-w); }
+  html[data-sb="open"] .sm-content        { margin-left: var(--sidebar-w); }
+  html[data-sb="open"] .sm-sb-toggle      { left: calc(var(--sidebar-w) - 13px); }
+  html[data-sb="open"] #sm-sb-icon        { transform: rotate(180deg); }
+</style>
 </head>
-<body class="bg-light">
+<body>
+<div class="sm-shell">
 
-<!-- Header -->
-<header class="text-white py-3" style="background-color:#1A4D2E;">
-    <div class="container d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center">
-            <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
-                 alt="Logo" class="me-3" style="width:80px;height:80px;">
-            <div>
-                <h1 class="h5 mb-0">Controle de Finanças</h1>
-                <small>Gerencie seus gastos</small>
-            </div>
-        </div>
-        <nav>
-            <a href="{{ url_for('index') }}"       class="text-white text-decoration-none me-3">Início</a>
-            <a href="{{ url_for('lancamentos') }}" class="text-white text-decoration-none me-3">Lançamentos</a>
-            <a href="{{ url_for('projecoes') }}"   class="text-white text-decoration-none me-3">Projeções</a>
-            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none me-3">Visão Geral</a>
-            {% if session.user_role == 'admin' %}
-            <a href="{{ url_for('admin') }}" class="text-white text-decoration-none me-3" title="Admin">
-                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="opacity-75"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
-            </a>
-            {% endif %}
-            <span class="text-white opacity-75 small me-2">{{ session.user_nome }}</span>
-            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light py-1 px-2" style="font-size:12px;">Sair</a>
-        </nav>
-    </div>
-</header>
-
-<div class="page-wrapper">
-    <!-- Sidebar -->
-    <nav class="sidebar-nav bg-dark text-white p-3">
-        <div class="sidebar-title">Lançamentos</div>
-        <ul class="nav flex-column">
-            <li class="nav-item"><a href="{{ url_for('lancamentos') }}"            class="nav-link text-white">Despesas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosAssinaturas') }}" class="nav-link text-white">Assinaturas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosReceita') }}"     class="nav-link text-white">Receitas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosConta') }}"       class="nav-link text-white">Contas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosCartao') }}"      class="nav-link text-white">Cartões</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosCategorias') }}"  class="nav-link text-white">Categorias</a></li>
-        </ul>
+  <!-- SIDEBAR -->
+  <aside class="sm-sidebar mini" id="sm-sidebar">
+    <button class="sm-sb-toggle mini" id="sm-sb-toggle" onclick="smToggleSidebar()" title="Expandir menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="sm-sb-icon">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+    <a class="sm-sb-logo" href="{{ url_for('index') }}">
+      <div class="sm-sb-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+      </div>
+      <div class="sm-sb-logo-text">
+        <div class="sm-sb-brand">Smart Money</div>
+        <div class="sm-sb-sub">Controle Financeiro</div>
+      </div>
+    </a>
+    <nav class="sm-sb-nav">
+      <div class="sm-sb-section">Principal</div>
+      <a href="{{ url_for('index') }}" class="sm-nav-item active" title="Início">
+        <i class="ti ti-home sm-nav-icon"></i><span class="sm-nav-label">Início</span>
+      </a>
+      <a href="{{ url_for('projecoes') }}" class="sm-nav-item" title="Projeções">
+        <i class="ti ti-chart-line sm-nav-icon"></i><span class="sm-nav-label">Projeções</span>
+      </a>
+      <a href="{{ url_for('visaoGeral') }}" class="sm-nav-item" title="Visão Geral">
+        <i class="ti ti-chart-bar sm-nav-icon"></i><span class="sm-nav-label">Visão Geral</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Lançamentos</div>
+      <a href="{{ url_for('lancamentos') }}" class="sm-nav-item" title="Despesas">
+        <i class="ti ti-trending-down sm-nav-icon"></i><span class="sm-nav-label">Despesas</span>
+      </a>
+      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Assinaturas">
+        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Assinaturas</span>
+      </a>
+      <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
+        <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
+      </a>
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Cadastros</div>
+      <a href="{{ url_for('lancamentosConta') }}" class="sm-nav-item" title="Contas">
+        <i class="ti ti-building-bank sm-nav-icon"></i><span class="sm-nav-label">Contas</span>
+      </a>
+      <a href="{{ url_for('lancamentosCartao') }}" class="sm-nav-item" title="Cartões">
+        <i class="ti ti-credit-card sm-nav-icon"></i><span class="sm-nav-label">Cartões</span>
+      </a>
+      <a href="{{ url_for('lancamentosCategorias') }}" class="sm-nav-item" title="Categorias">
+        <i class="ti ti-tag sm-nav-icon"></i><span class="sm-nav-label">Categorias</span>
+      </a>
     </nav>
+    <div class="sm-sb-footer">
+      <div class="sm-sb-user">
+        <div class="sm-sb-avatar">{{ session.user_nome[0]|upper }}</div>
+        <div class="sm-sb-user-info">
+          <div class="sm-sb-username">{{ session.user_nome }}</div>
+          <div class="sm-sb-userrole">{{ session.user_role }}</div>
+        </div>
+      </div>
+      {% if session.user_role == 'admin' %}
+      <a href="{{ url_for('admin') }}" class="sm-nav-item" title="Admin">
+        <i class="ti ti-shield sm-nav-icon"></i><span class="sm-nav-label">Admin</span>
+      </a>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="sm-sb-logout" title="Sair">
+        <i class="ti ti-logout sm-nav-icon"></i><span class="sm-nav-label">Sair</span>
+      </a>
+    </div>
+  </aside>
 
-    <div class="sidebar-content">
+  <!-- CONTENT -->
+  <div class="sm-content" id="sm-content">
+    <header class="sm-topbar">
+      <div class="sm-topbar-left">
+        <div class="sm-topbar-title">Dashboard</div>
+      </div>
+      <div class="sm-topbar-right">
+        <a href="{{ url_for('lancamentos') }}" class="sm-btn sm-btn-primary sm-btn-sm">
+          <i class="ti ti-plus"></i> Nova Despesa
+        </a>
+        <a href="{{ url_for('lancamentosReceita') }}" class="sm-btn sm-btn-success sm-btn-sm">
+          <i class="ti ti-plus"></i> Nova Receita
+        </a>
+        <div class="sm-topbar-user">
+          <div class="sm-topbar-avatar">{{ session.user_nome[0]|upper }}</div>
+          {{ session.user_nome }}
+        </div>
+      </div>
+    </header>
 
-        <!-- Ações Rápidas -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card card-dashboard">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="bi bi-lightning-fill text-warning me-2"></i>Ações Rápidas</h5>
-                        <div class="d-flex flex-wrap gap-2">
-                            <a href="{{ url_for('lancamentos') }}"        class="btn btn-outline-primary quick-action-btn"><i class="bi bi-plus-circle me-2"></i>Nova Despesa</a>
-                            <a href="{{ url_for('lancamentosReceita') }}" class="btn btn-outline-success quick-action-btn"><i class="bi bi-currency-dollar me-2"></i>Nova Receita</a>
-                            <a href="{{ url_for('lancamentosConta') }}"   class="btn btn-outline-info quick-action-btn"><i class="bi bi-bank me-2"></i>Gerenciar Contas</a>
-                            <a href="{{ url_for('lancamentosCartao') }}"  class="btn btn-outline-warning quick-action-btn"><i class="bi bi-credit-card me-2"></i>Gerenciar Cartões</a>
-                        </div>
-                    </div>
-                </div>
+    <main class="sm-main sm-animate">
+
+      <!-- Abas de cartão -->
+      <nav class="nav-tabs-cartao" id="abaCartoes">
+        <a class="nav-link active" data-cartao="geral" href="#">
+          <i class="ti ti-layout-grid" style="font-size:14px"></i> Geral
+        </a>
+        {% for c in cartoes_credito %}
+        <a class="nav-link" data-cartao="{{ c.id }}" href="#">
+          <i class="ti ti-credit-card" style="font-size:14px"></i> {{ c.nome }}
+          <span class="badge-cartao">crédito</span>
+        </a>
+        {% endfor %}
+      </nav>
+
+      <div id="tabLoading" style="display:none">
+        <div class="d-flex justify-content-center py-4">
+          <div class="spinner-border text-secondary" role="status"><span class="visually-hidden">Carregando...</span></div>
+        </div>
+      </div>
+
+      <!-- Info fatura -->
+      <div id="faturaInfoBar" class="fatura-info-bar d-none">
+        <i class="ti ti-info-circle me-2"></i>
+        <span id="faturaInfoTexto"></span>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="row g-3 mb-4" id="cardsResumo">
+        <div class="col-md-3">
+          <div class="sm-card kpi-card green">
+            <div class="sm-card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard1">Saldo Total</div>
+                <div class="kpi-value positive" id="valorCard1">R$ {{ "%.2f"|format(saldo_total) }}</div>
+                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard1">Saldo disponível em todas as contas</div>
+              </div>
+              <div class="kpi-icon" style="background:var(--green-bg);color:var(--green)">
+                <i class="ti ti-wallet" id="iconCard1"></i>
+              </div>
             </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="sm-card kpi-card amber">
+            <div class="sm-card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard2">Fatura Atual</div>
+                <div class="kpi-value negative" id="valorCard2">R$ {{ "%.2f"|format(gasto_credito) }}</div>
+                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard2">Total na fatura aberta dos cartões</div>
+              </div>
+              <div class="kpi-icon" style="background:#fef3c7;color:var(--amber)">
+                <i class="ti ti-credit-card"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="sm-card kpi-card blue" id="card3">
+            <div class="sm-card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard3">Disponível no Mês</div>
+                <div class="kpi-value {% if disponivel_mes >= 0 %}positive{% else %}negative{% endif %}" id="valorCard3">R$ {{ "%.2f"|format(disponivel_mes) }}</div>
+                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard3">Saldo + Receitas − Fatura atual</div>
+              </div>
+              <div class="kpi-icon" style="background:var(--blue-100);color:var(--blue-700)">
+                <i class="ti ti-chart-arrows-vertical"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="sm-card kpi-card teal">
+            <div class="sm-card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard4">Receitas do Mês</div>
+                <div class="kpi-value positive" id="valorCard4">R$ {{ "%.2f"|format(receitas_mes) }}</div>
+                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard4">Total recebido este mês</div>
+              </div>
+              <div class="kpi-icon" style="background:#e0f2fe;color:#0891b2">
+                <i class="ti ti-arrow-down-circle"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projeção + Categorias -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-8" id="colProjecao">
+          <div class="sm-card h-100">
+            <div class="sm-card-header">
+              <div class="sm-card-title" id="tituloProjecao">Projeção dos Próximos Meses</div>
+              <a href="{{ url_for('projecoes') }}" class="sm-btn sm-btn-outline sm-btn-sm" id="linkProjecao">Ver mais</a>
+            </div>
+            <div class="sm-card-body">
+              <div id="projecaoGeral">
+                {% if proximas_faturas %}
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                  {% for p in proximas_faturas %}
+                  {% if p.saldo >= 500 %}
+                    {% set bg_h="#E1F5EE" %} {% set bd_h="#9FE1CB" %} {% set tx_h="#085041" %} {% set pill_bg="#9FE1CB" %} {% set cor_saldo="#1D9E75" %}
+                  {% elif p.saldo >= 0 %}
+                    {% set bg_h="#FAEEDA" %} {% set bd_h="#FAC775" %} {% set tx_h="#633806" %} {% set pill_bg="#FAC775" %} {% set cor_saldo="#BA7517" %}
+                  {% else %}
+                    {% set bg_h="#FCEBEB" %} {% set bd_h="#F7C1C1" %} {% set tx_h="#501313" %} {% set pill_bg="#F7C1C1" %} {% set cor_saldo="#A32D2D" %}
+                  {% endif %}
+                  <div class="proj-card">
+                    <div class="proj-header" style="background:{{ bg_h }};border-bottom:1px solid {{ bd_h }};">
+                      <span style="font-weight:500;font-size:13px;color:{{ tx_h }};">{{ p.mes_ano }}</span>
+                      <span class="proj-pill" style="background:{{ pill_bg }};color:{{ tx_h }};">{% if p.saldo >= 0 %}+{% endif %}R$ {{ "%.0f"|format(p.saldo) }}</span>
+                    </div>
+                    <div class="proj-body">
+                      <div class="proj-row">
+                        <span class="proj-label"><span class="proj-dot" style="background:#1D9E75;"></span>Rec. fixas</span>
+                        <span style="font-weight:500;color:#1D9E75;">R$ {{ "%.2f"|format(p.receitas) }}</span>
+                      </div>
+                      <div class="proj-row">
+                        <span class="proj-label"><span class="proj-dot" style="background:#E24B4A;"></span>Desp. fixas</span>
+                        <span style="font-weight:500;color:#dc3545;">R$ {{ "%.2f"|format(p.despesas_fixas) }}</span>
+                      </div>
+                      <div class="proj-row">
+                        <span class="proj-label"><span class="proj-dot" style="background:#BA7517;"></span>Parcelas</span>
+                        <span style="font-weight:500;color:#BA7517;">R$ {{ "%.2f"|format(p.despesas_parceladas) }}</span>
+                      </div>
+                      <div class="proj-saldo">
+                        <span class="proj-saldo-label">Saldo proj.</span>
+                        <span class="proj-saldo-val" style="color:{{ cor_saldo }};">{% if p.saldo < 0 %}−{% endif %}R$ {{ "%.2f"|format(p.saldo|abs) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <p class="sm-text-muted text-center mb-0" style="font-size:.82rem">Adicione receitas ou despesas fixas para ver projeções.</p>
+                {% endif %}
+              </div>
+              <div id="historicoCartao" style="display:none;">
+                <canvas id="graficoHistoricoCartao" height="140"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- ══ ABAS ══ -->
-        <nav class="d-flex nav-tabs-cartao flex-wrap" id="abaCartoes">
-            <a class="nav-link active" data-cartao="geral" href="#">
-                <i class="bi bi-grid me-1"></i>Geral
-            </a>
-            {% for c in cartoes_credito %}
-            <a class="nav-link" data-cartao="{{ c.id }}" href="#">
-                <i class="bi bi-credit-card me-1"></i>{{ c.nome }}
-                <span class="badge-cartao">crédito</span>
-            </a>
-            {% endfor %}
-        </nav>
-
-        <!-- ══ CONTEÚDO DAS ABAS ══ -->
-        <div class="tab-content-area">
-            <div id="tabLoading">
-                <div class="spinner-border text-secondary" role="status">
-                    <span class="visually-hidden">Carregando...</span>
-                </div>
+        <div class="col-md-4">
+          <div class="sm-card h-100">
+            <div class="sm-card-header">
+              <div class="sm-card-title">Top Gastos por Categoria</div>
+              <i class="ti ti-chart-pie sm-text-muted"></i>
             </div>
-
-            <!-- Info de período da fatura (visível só na aba de cartão) -->
-            <div id="faturaInfoBar" class="fatura-info-bar d-none">
-                <i class="bi bi-info-circle me-2 text-muted"></i>
-                <span id="faturaInfoTexto"></span>
+            <div class="sm-card-body" id="listaCategorias">
+              {% if gastos_por_categoria %}
+              {% for cat in gastos_por_categoria %}
+              <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <span style="font-size:.82rem;font-weight:600">{{ cat.nome }}</span>
+                <span class="sm-badge sm-badge-amber">R$ {{ "%.2f"|format(cat.total) }}</span>
+              </div>
+              {% endfor %}
+              {% else %}
+              <p class="sm-text-muted text-center mb-0" style="font-size:.82rem">Nenhum gasto este mês</p>
+              {% endif %}
             </div>
+          </div>
+        </div>
+      </div>
 
-            <!-- Cards de resumo -->
-            <div class="row mb-4" id="cardsResumo">
-                <div class="col-md-3 mb-3">
-                    <div class="card card-dashboard border-success">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-title text-muted" id="labelCard1">Saldo Total</h6>
-                                    <h3 class="positive" id="valorCard1">R$ {{ "%.2f"|format(saldo_total) }}</h3>
-                                </div>
-                                <div class="bg-success bg-opacity-10 p-3 rounded">
-                                    <i class="bi bi-wallet2 text-success" id="iconCard1" style="font-size:2rem;"></i>
-                                </div>
-                            </div>
-                            <small class="text-muted" id="subCard1">Saldo disponível em todas as contas</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card card-dashboard border-warning">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-title text-muted" id="labelCard2">Fatura Atual</h6>
-                                    <h3 class="negative" id="valorCard2">R$ {{ "%.2f"|format(gasto_credito) }}</h3>
-                                </div>
-                                <div class="bg-warning bg-opacity-10 p-3 rounded">
-                                    <i class="bi bi-credit-card text-warning" style="font-size:2rem;"></i>
-                                </div>
-                            </div>
-                            <small class="text-muted" id="subCard2">Total na fatura aberta dos cartões</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card card-dashboard border-primary" id="card3">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-title text-muted" id="labelCard3">Disponível no Mês</h6>
-                                    <h3 id="valorCard3" class="{% if disponivel_mes >= 0 %}positive{% else %}negative{% endif %}">
-                                        R$ {{ "%.2f"|format(disponivel_mes) }}
-                                    </h3>
-                                </div>
-                                <div class="bg-primary bg-opacity-10 p-3 rounded">
-                                    <i class="bi bi-graph-up text-primary" style="font-size:2rem;"></i>
-                                </div>
-                            </div>
-                            <small class="text-muted" id="subCard3">Saldo + Receitas − Fatura atual</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card card-dashboard border-info">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-title text-muted" id="labelCard4">Receitas do Mês</h6>
-                                    <h3 class="positive" id="valorCard4">R$ {{ "%.2f"|format(receitas_mes) }}</h3>
-                                </div>
-                                <div class="bg-info bg-opacity-10 p-3 rounded">
-                                    <i class="bi bi-arrow-down-circle text-info" style="font-size:2rem;"></i>
-                                </div>
-                            </div>
-                            <small class="text-muted" id="subCard4">Total recebido este mês</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <!-- Últimas Transações -->
+      <div class="sm-card">
+        <div class="sm-card-header">
+          <div class="sm-card-title" id="tituloTransacoes">Últimas Transações</div>
+          <a href="{{ url_for('lancamentos') }}" class="sm-btn sm-btn-outline sm-btn-sm">Ver todas</a>
+        </div>
+        <div class="sm-table-wrap">
+          <table class="sm-table" id="tabelaTransacoes">
+            <thead>
+              <tr>
+                <th>Data</th><th>Descrição</th><th>Categoria</th><th>Cartão / Conta</th><th>Tipo</th><th class="text-end">Valor</th>
+              </tr>
+            </thead>
+            <tbody id="corpoTransacoes">
+              {% for t in transacoes %}
+              <tr>
+                <td class="sm-text-muted" style="font-size:.78rem">{{ t.data_lancamento }}</td>
+                <td>{{ t.descricao }}</td>
+                <td>{{ t.categoria or '—' }}</td>
+                <td>{{ t.cartao_nome or t.conta_nome or '—' }}</td>
+                <td>
+                  {% if t.tipo == 'receita' %}
+                  <span class="sm-badge sm-badge-success">Receita</span>
+                  {% else %}
+                  <span class="sm-badge sm-badge-danger">Despesa</span>
+                  {% endif %}
+                </td>
+                <td class="text-end sm-fw-bold {% if t.tipo == 'receita' %}positive{% else %}negative{% endif %}">
+                  R$ {{ "%.2f"|format(t.valor) }}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="6" class="text-center sm-text-muted py-4">Nenhuma transação encontrada</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-            <!-- Linha: Projeção + Categorias -->
-            <div class="row mb-4">
-                <!-- Projeção (visível só no Geral) / Histórico do cartão -->
-                <div class="col-md-8 mb-3" id="colProjecao">
-                    <div class="card card-dashboard h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="card-title text-muted mb-0" id="tituloProjecao">
-                                    <i class="bi bi-calendar3 me-2"></i>Projeção dos Próximos Meses
-                                </h6>
-                                <a href="{{ url_for('projecoes') }}" class="btn btn-sm btn-outline-secondary" id="linkProjecao">Ver mais</a>
-                            </div>
-                            <!-- Projeção geral -->
-                            <div id="projecaoGeral">
-                                {% if proximas_faturas %}
-                                <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                                    {% for p in proximas_faturas %}
-                                    {% if p.saldo >= 500 %}
-                                        {% set bg_h="#E1F5EE" %} {% set bd_h="#9FE1CB" %} {% set tx_h="#085041" %} {% set pill_bg="#9FE1CB" %} {% set cor_saldo="#1D9E75" %}
-                                    {% elif p.saldo >= 0 %}
-                                        {% set bg_h="#FAEEDA" %} {% set bd_h="#FAC775" %} {% set tx_h="#633806" %} {% set pill_bg="#FAC775" %} {% set cor_saldo="#BA7517" %}
-                                    {% else %}
-                                        {% set bg_h="#FCEBEB" %} {% set bd_h="#F7C1C1" %} {% set tx_h="#501313" %} {% set pill_bg="#F7C1C1" %} {% set cor_saldo="#A32D2D" %}
-                                    {% endif %}
-                                    <div class="proj-card">
-                                        <div class="proj-header" style="background:{{ bg_h }};border-bottom:1px solid {{ bd_h }};">
-                                            <span style="font-weight:500;font-size:13px;color:{{ tx_h }};">{{ p.mes_ano }}</span>
-                                            <span class="proj-pill" style="background:{{ pill_bg }};color:{{ tx_h }};">{% if p.saldo >= 0 %}+{% endif %}R$ {{ "%.0f"|format(p.saldo) }}</span>
-                                        </div>
-                                        <div class="proj-body">
-                                            <div class="proj-row">
-                                                <span class="proj-label"><span class="proj-dot" style="background:#1D9E75;"></span>Rec. fixas</span>
-                                                <span style="font-weight:500;color:#1D9E75;">R$ {{ "%.2f"|format(p.receitas) }}</span>
-                                            </div>
-                                            <div class="proj-row">
-                                                <span class="proj-label"><span class="proj-dot" style="background:#E24B4A;"></span>Desp. fixas</span>
-                                                <span style="font-weight:500;color:#dc3545;">R$ {{ "%.2f"|format(p.despesas_fixas) }}</span>
-                                            </div>
-                                            <div class="proj-row">
-                                                <span class="proj-label"><span class="proj-dot" style="background:#BA7517;"></span>Parcelas</span>
-                                                <span style="font-weight:500;color:#BA7517;">R$ {{ "%.2f"|format(p.despesas_parceladas) }}</span>
-                                            </div>
-                                            <div class="proj-saldo">
-                                                <span class="proj-saldo-label">Saldo proj.</span>
-                                                <span class="proj-saldo-val" style="color:{{ cor_saldo }};">{% if p.saldo < 0 %}−{% endif %}R$ {{ "%.2f"|format(p.saldo|abs) }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% else %}
-                                <p class="text-muted text-center mb-0">Adicione receitas ou despesas fixas para ver projeções.</p>
-                                {% endif %}
-                            </div>
-                            <!-- Histórico do cartão (aparece quando aba de cartão ativa) -->
-                            <div id="historicoCartao" style="display:none;">
-                                <canvas id="graficoHistoricoCartao" height="140"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Top Categorias -->
-                <div class="col-md-4 mb-3">
-                    <div class="card card-dashboard border-warning h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="card-title text-muted mb-0">Top Gastos por Categoria</h6>
-                                <i class="bi bi-pie-chart text-warning"></i>
-                            </div>
-                            <div id="listaCategorias">
-                                {% if gastos_por_categoria %}
-                                    {% for cat in gastos_por_categoria %}
-                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                                        <small class="fw-bold">{{ cat.nome }}</small>
-                                        <span class="badge bg-warning text-dark">R$ {{ "%.2f"|format(cat.total) }}</span>
-                                    </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <p class="text-muted text-center mb-0">Nenhum gasto este mês</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Últimas Transações -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="card card-dashboard">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="card-title mb-0">
-                                    <i class="bi bi-clock-history text-primary me-2"></i>
-                                    <span id="tituloTransacoes">Últimas Transações</span>
-                                </h5>
-                                <a href="{{ url_for('lancamentos') }}" class="btn btn-sm btn-outline-primary">Ver Todas</a>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-hover" id="tabelaTransacoes">
-                                    <thead>
-                                        <tr>
-                                            <th>Data</th>
-                                            <th>Descrição</th>
-                                            <th>Categoria</th>
-                                            <th>Cartão</th>
-                                            <th>Tipo</th>
-                                            <th class="text-end">Valor</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="corpoTransacoes">
-                                        {% for t in transacoes %}
-                                        <tr>
-                                            <td class="text-muted small">{{ t.data_lancamento }}</td>
-                                            <td>{{ t.descricao }}</td>
-                                            <td>{{ t.categoria or '-' }}</td>
-                                            <td>{{ t.cartao_nome or t.conta_nome or '-' }}</td>
-                                            <td>
-                                                {% if t.tipo == 'receita' %}
-                                                    <span class="badge bg-success">Receita</span>
-                                                {% else %}
-                                                    <span class="badge bg-danger">Despesa</span>
-                                                {% endif %}
-                                            </td>
-                                            <td class="text-end {% if t.tipo == 'receita' %}positive{% else %}negative{% endif %}">
-                                                R$ {{ "%.2f"|format(t.valor) }}
-                                            </td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="6" class="text-center text-muted">Nenhuma transação encontrada</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div><!-- /tab-content-area -->
-    </div><!-- /sidebar-content -->
-</div><!-- /page-wrapper -->
+    </main>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
+
+<script>
+const SB_KEY = 'sm_sidebar';
+const sidebar    = document.getElementById('sm-sidebar');
+const content    = document.getElementById('sm-content');
+const toggleBtn  = document.getElementById('sm-sb-toggle');
+const toggleIcon = document.getElementById('sm-sb-icon');
+
+function smToggleSidebar() {
+    const mini = sidebar.classList.toggle('mini');
+    content.classList.toggle('expanded', !mini);
+    toggleBtn.classList.toggle('mini', mini);
+    toggleIcon.innerHTML = mini
+        ? '<polyline points="9 18 15 12 9 6"></polyline>'
+        : '<polyline points="15 18 9 12 15 6"></polyline>';
+    localStorage.setItem(SB_KEY, mini ? 'mini' : 'open');
+}
+(function() {
+    const isOpen = localStorage.getItem(SB_KEY) === 'open';
+    sidebar.classList.toggle('mini', !isOpen);
+    content.classList.toggle('expanded', isOpen);
+    toggleBtn.classList.toggle('mini', !isOpen);
+    toggleIcon.innerHTML = isOpen
+        ? '<polyline points="15 18 9 12 15 6"></polyline>'
+        : '<polyline points="9 18 15 12 9 6"></polyline>';
+    // Remove atributo após JS assumir controle
+    document.documentElement.removeAttribute('data-sb');
+})();
+</script>
+
 <script>
 // ════════════════════════════════════════════════════════════════
 // Estado global do dashboard
@@ -565,12 +672,12 @@ document.getElementById('abaCartoes').addEventListener('click', function(e) {
             if (d.success) {
                 renderizarCartao(d);
             } else {
-                alert('Erro ao carregar dados do cartão.');
+                WM.erro('Erro ao carregar dados do cartão.');
             }
         })
         .catch(() => {
             loading.style.display = 'none';
-            alert('Erro de conexão.');
+            WM.erro('Erro de conexão.');
         });
 });
 
@@ -595,6 +702,5 @@ function atualizarDashboardGeral() {
 setInterval(atualizarDashboardGeral, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) atualizarDashboardGeral(); });
 </script>
-
 </body>
 </html>

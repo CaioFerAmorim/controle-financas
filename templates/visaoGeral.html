@@ -2,204 +2,272 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Visão Geral - Controle de Finanças</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visão Geral — Smart Money</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <style>
-        /* ── Sidebar fixa que acompanha o conteúdo ─────────────── */
-        .page-wrapper {
-            display: flex;
-            min-height: calc(100vh - 98px); /* desconta o header */
-        }
-        .sidebar-nav {
-            width: 200px;
-            min-width: 200px;
-            flex-shrink: 0;
-        }
-        .sidebar-title {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .08em;
-            color: #adb5bd;
-            padding: 4px 12px 10px;
-        }
-        .sidebar-nav .nav-link {
-            font-size: 13px;
-            padding: 7px 12px;
-            border-radius: 6px;
-            color: rgba(255,255,255,.8) !important;
-            transition: background .15s, color .15s;
-        }
-        .sidebar-nav .nav-link:hover {
-            background: rgba(255,255,255,.1);
-            color: #fff !important;
-        }
-        .sidebar-nav .nav-link[aria-current="page"] {
-            background: rgba(255,255,255,.15);
-            color: #fff !important;
-            font-weight: 600;
-        }
-        .sidebar-content {
-            flex: 1;
-            min-width: 0;
-            padding: 1.5rem;
-        }
-    </style>
+<script>
+  // Aplica estado da sidebar antes do primeiro paint — evita flash
+  (function() {
+    if (localStorage.getItem('sm_sidebar') === 'open') {
+      document.documentElement.setAttribute('data-sb', 'open');
+    }
+  })();
+</script>
+<style>
+  /* Estado inicial da sidebar via atributo — sem flash e sem animação */
+  html[data-sb="open"] .sm-sidebar,
+  html[data-sb="open"] .sm-content,
+  html[data-sb="open"] .sm-sb-toggle,
+  html[data-sb="open"] #sm-sb-icon        { transition: none !important; }
+  html[data-sb="open"] .sm-sidebar        { width: var(--sidebar-w); }
+  html[data-sb="open"] .sm-content        { margin-left: var(--sidebar-w); }
+  html[data-sb="open"] .sm-sb-toggle      { left: calc(var(--sidebar-w) - 13px); }
+  html[data-sb="open"] #sm-sb-icon        { transform: rotate(180deg); }
+</style>
 </head>
-<body class="bg-light">
+<body>
+<div class="sm-shell">
 
-<!-- Header -->
-<header class="text-white py-3" style="background-color: #1A4D2E;">
-    <div class="container d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center">
-            <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
-                 alt="Logo" class="me-3" style="width:80px;height:80px;">
-            <div>
-                <h1 class="h5 mb-0">Controle de Finanças</h1>
-                <small>Gerencie seus gastos</small>
-            </div>
-        </div>
-        <nav>
-            <a href="{{ url_for('index') }}"       class="text-white text-decoration-none me-3">Início</a>
-            <a href="{{ url_for('lancamentos') }}" class="text-white text-decoration-none me-3">Lançamentos</a>
-            <a href="{{ url_for('projecoes') }}"   class="text-white text-decoration-none me-3">Projeções</a>
-            <a href="{{ url_for('visaoGeral') }}"  class="text-white text-decoration-none me-3">Visão Geral</a>
-            {% if session.user_role == 'admin' %}
-            <a href="{{ url_for('admin') }}" class="text-white text-decoration-none me-3" title="Admin">
-                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="opacity-75"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
-            </a>
-            {% endif %}
-            <span class="text-white opacity-75 small me-2">{{ session.user_nome }}</span>
-            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light py-1 px-2" style="font-size:12px;">Sair</a>
-        </nav>
-    </div>
-</header>
-
-<div class="page-wrapper">
-    <nav class="sidebar-nav bg-dark text-white p-3">
-        <div class="sidebar-title">Lançamentos</div>
-        <ul class="nav flex-column">
-            <li class="nav-item"><a href="{{ url_for('lancamentos') }}"            class="nav-link text-white">Despesas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosAssinaturas') }}" class="nav-link text-white">Assinaturas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosReceita') }}"     class="nav-link text-white">Receitas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosConta') }}"       class="nav-link text-white">Contas</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosCartao') }}"      class="nav-link text-white">Cartões</a></li>
-            <li class="nav-item"><a href="{{ url_for('lancamentosCategorias') }}"  class="nav-link text-white">Categorias</a></li>
-        </ul>
+  <!-- SIDEBAR -->
+  <aside class="sm-sidebar mini" id="sm-sidebar">
+    <button class="sm-sb-toggle mini" id="sm-sb-toggle" onclick="smToggleSidebar()" title="Expandir menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="sm-sb-icon">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+    <a class="sm-sb-logo" href="{{ url_for('index') }}">
+      <div class="sm-sb-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+      </div>
+      <div class="sm-sb-logo-text">
+        <div class="sm-sb-brand">Smart Money</div>
+        <div class="sm-sb-sub">Controle Financeiro</div>
+      </div>
+    </a>
+    <nav class="sm-sb-nav">
+      <div class="sm-sb-section">Principal</div>
+      <a href="{{ url_for('index') }}" class="sm-nav-item" title="Início">
+        <i class="ti ti-home sm-nav-icon"></i><span class="sm-nav-label">Início</span>
+      </a>
+      <a href="{{ url_for('projecoes') }}" class="sm-nav-item" title="Projeções">
+        <i class="ti ti-chart-line sm-nav-icon"></i><span class="sm-nav-label">Projeções</span>
+      </a>
+      <a href="{{ url_for('visaoGeral') }}" class="sm-nav-item active" title="Visão Geral">
+        <i class="ti ti-chart-bar sm-nav-icon"></i><span class="sm-nav-label">Visão Geral</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Lançamentos</div>
+      <a href="{{ url_for('lancamentos') }}" class="sm-nav-item" title="Despesas">
+        <i class="ti ti-trending-down sm-nav-icon"></i><span class="sm-nav-label">Despesas</span>
+      </a>
+      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Assinaturas">
+        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Assinaturas</span>
+      </a>
+      <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
+        <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
+      </a>
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Cadastros</div>
+      <a href="{{ url_for('lancamentosConta') }}" class="sm-nav-item" title="Contas">
+        <i class="ti ti-building-bank sm-nav-icon"></i><span class="sm-nav-label">Contas</span>
+      </a>
+      <a href="{{ url_for('lancamentosCartao') }}" class="sm-nav-item" title="Cartões">
+        <i class="ti ti-credit-card sm-nav-icon"></i><span class="sm-nav-label">Cartões</span>
+      </a>
+      <a href="{{ url_for('lancamentosCategorias') }}" class="sm-nav-item" title="Categorias">
+        <i class="ti ti-tag sm-nav-icon"></i><span class="sm-nav-label">Categorias</span>
+      </a>
     </nav>
-    <div class="sidebar-content">
-<div class="container-fluid">
-    <h4 class="mb-4"><i class="bi bi-bar-chart-line me-2 text-primary"></i>Visão Geral</h4>
+    <div class="sm-sb-footer">
+      <div class="sm-sb-user">
+        <div class="sm-sb-avatar">{{ session.user_nome[0]|upper }}</div>
+        <div class="sm-sb-user-info">
+          <div class="sm-sb-username">{{ session.user_nome }}</div>
+          <div class="sm-sb-userrole">{{ session.user_role }}</div>
+        </div>
+      </div>
+      {% if session.user_role == 'admin' %}
+      <a href="{{ url_for('admin') }}" class="sm-nav-item" title="Admin">
+        <i class="ti ti-shield sm-nav-icon"></i><span class="sm-nav-label">Admin</span>
+      </a>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="sm-sb-logout" title="Sair">
+        <i class="ti ti-logout sm-nav-icon"></i><span class="sm-nav-label">Sair</span>
+      </a>
+    </div>
+  </aside>
 
-    <!-- Saldo por conta -->
-    <div class="row g-3 mb-4">
+  <!-- CONTENT -->
+  <div class="sm-content" id="sm-content">
+    <header class="sm-topbar">
+      <div class="sm-topbar-left">
+        <div class="sm-topbar-breadcrumb">
+          <span>Principal</span>
+          <span>›</span>
+          <strong style="color:var(--text-primary)">Visão Geral</strong>
+        </div>
+      </div>
+      <div class="sm-topbar-right">
+        <div class="sm-topbar-user">
+          <div class="sm-topbar-avatar">{{ session.user_nome[0]|upper }}</div>
+          {{ session.user_nome }}
+        </div>
+      </div>
+    </header>
+    <main class="sm-main sm-animate">
+      <div class="sm-page-header">
+        <h1 class="sm-page-title">Visão Geral</h1>
+      </div>
+
+      <!-- Saldo por conta -->
+      <div class="row g-3 mb-4">
         {% for conta in por_conta %}
         <div class="col-md-3">
-            <div class="card shadow-sm border-success">
-                <div class="card-body">
-                    <h6 class="text-muted">{{ conta.nome }}</h6>
-                    <h4 class="{% if conta.saldo >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        R$ {{ "%.2f"|format(conta.saldo) }}
-                    </h4>
-                </div>
+          <div class="sm-card" style="border-left:4px solid var(--blue-600)">
+            <div class="sm-card-body">
+              <div class="sm-text-muted" style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">{{ conta.nome }}</div>
+              <div class="sm-fw-bold {% if conta.saldo >= 0 %}sm-text-success{% else %}sm-text-danger{% endif %}" style="font-size:1.4rem">
+                R$ {{ "%.2f"|format(conta.saldo) }}
+              </div>
             </div>
+          </div>
         </div>
         {% else %}
         <div class="col-12">
-            <div class="alert alert-info">
-                Nenhuma conta cadastrada. <a href="{{ url_for('lancamentosConta') }}" class="alert-link">Adicionar conta</a>
-            </div>
+          <div class="alert alert-info">
+            Nenhuma conta cadastrada. <a href="{{ url_for('lancamentosConta') }}" class="alert-link">Adicionar conta</a>
+          </div>
         </div>
         {% endfor %}
-    </div>
+      </div>
 
-    <div class="row g-4 mb-4">
-        <!-- Gráfico: Receitas vs Despesas (6 meses) -->
+      <!-- Gráficos -->
+      <div class="row g-4 mb-4">
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white">Receitas vs Despesas — Últimos 6 Meses</div>
-                <div class="card-body">
-                    <canvas id="graficoHistorico" height="120"></canvas>
-                </div>
+          <div class="sm-card">
+            <div class="sm-card-header">
+              <div class="sm-card-title">Receitas vs Despesas — Últimos 6 Meses</div>
             </div>
+            <div class="sm-card-body">
+              <canvas id="graficoHistorico" height="120"></canvas>
+            </div>
+          </div>
         </div>
-
-        <!-- Gráfico: Gastos por Categoria -->
         <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white">Gastos por Categoria (mês atual)</div>
-                <div class="card-body">
-                    {% if por_categoria %}
-                    <canvas id="graficoCategorias" height="200"></canvas>
-                    {% else %}
-                    <p class="text-muted text-center mt-4">Sem despesas no mês atual</p>
-                    {% endif %}
-                </div>
+          <div class="sm-card">
+            <div class="sm-card-header">
+              <div class="sm-card-title">Gastos por Categoria (mês atual)</div>
             </div>
+            <div class="sm-card-body">
+              {% if por_categoria %}
+              <canvas id="graficoCategorias" height="200"></canvas>
+              {% else %}
+              <p class="sm-text-muted text-center mt-4" style="font-size:.82rem">Sem despesas no mês atual</p>
+              {% endif %}
+            </div>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <!-- Faturas dos cartões -->
-    {% if faturas_cartoes %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-dark text-white">Fatura Atual dos Cartões</div>
-        <div class="card-body p-0">
-            <table class="table table-striped table-hover mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Cartão</th>
-                        <th>Período da Fatura</th>
-                        <th>Vencimento</th>
-                        <th class="text-end">Gasto</th>
-                        <th class="text-end">Limite</th>
-                        <th class="text-end">Disponível</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for f in faturas_cartoes %}
-                    <tr>
-                        <td class="fw-bold">{{ f.nome }}</td>
-                        <td class="text-muted small">{{ f.inicio }} a {{ f.fim }}</td>
-                        <td>{{ f.vencimento }}</td>
-                        <td class="text-end text-danger">R$ {{ "%.2f"|format(f.gasto) }}</td>
-                        <td class="text-end">R$ {{ "%.2f"|format(f.limite) }}</td>
-                        <td class="text-end {% if f.limite - f.gasto >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            R$ {{ "%.2f"|format(f.limite - f.gasto) }}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+      <!-- Faturas -->
+      {% if faturas_cartoes %}
+      <div class="sm-card mb-4">
+        <div class="sm-card-header">
+          <div class="sm-card-title">Fatura Atual dos Cartões</div>
         </div>
-    </div>
-    {% endif %}
+        <div class="sm-table-wrap">
+          <table class="sm-table">
+            <thead>
+              <tr>
+                <th>Cartão</th>
+                <th>Período</th>
+                <th>Vencimento</th>
+                <th class="text-end">Gasto</th>
+                <th class="text-end">Limite</th>
+                <th class="text-end">Disponível</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in faturas_cartoes %}
+              <tr>
+                <td class="sm-fw-bold">{{ f.nome }}</td>
+                <td class="sm-text-muted" style="font-size:.78rem">{{ f.inicio }} a {{ f.fim }}</td>
+                <td>{{ f.vencimento }}</td>
+                <td class="text-end sm-text-danger">R$ {{ "%.2f"|format(f.gasto) }}</td>
+                <td class="text-end sm-text-muted">R$ {{ "%.2f"|format(f.limite) }}</td>
+                <td class="text-end sm-fw-bold {% if f.limite - f.gasto >= 0 %}sm-text-success{% else %}sm-text-danger{% endif %}">
+                  R$ {{ "%.2f"|format(f.limite - f.gasto) }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+    </main>
+  </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editar-utils.js') }}"></script>
+
 <script>
-    // Dados do backend via Jinja2
+const SB_KEY = 'sm_sidebar';
+const sidebar   = document.getElementById('sm-sidebar');
+const content   = document.getElementById('sm-content');
+const toggleBtn = document.getElementById('sm-sb-toggle');
+const toggleIcon = document.getElementById('sm-sb-icon');
+
+function smToggleSidebar() {
+    const mini = sidebar.classList.toggle('mini');
+    content.classList.toggle('expanded', !mini);
+    toggleBtn.classList.toggle('mini', mini);
+    toggleIcon.innerHTML = mini
+        ? '<polyline points="9 18 15 12 9 6"></polyline>'
+        : '<polyline points="15 18 9 12 15 6"></polyline>';
+    localStorage.setItem(SB_KEY, mini ? 'mini' : 'open');
+}
+
+(function() {
+    const isOpen = localStorage.getItem(SB_KEY) === 'open';
+    sidebar.classList.toggle('mini', !isOpen);
+    content.classList.toggle('expanded', isOpen);
+    toggleBtn.classList.toggle('mini', !isOpen);
+    toggleIcon.innerHTML = isOpen
+        ? '<polyline points="15 18 9 12 15 6"></polyline>'
+        : '<polyline points="9 18 15 12 9 6"></polyline>';
+    // Remove atributo após JS assumir controle
+    document.documentElement.removeAttribute('data-sb');
+})();
+</script>
+
+<script>
     const historico    = {{ historico    | tojson | safe }};
     const porCategoria = {{ por_categoria | tojson | safe }};
 
-    // Gráfico de barras: receitas vs despesas
     const ctxHist = document.getElementById('graficoHistorico').getContext('2d');
     new Chart(ctxHist, {
         type: 'bar',
         data: {
             labels: historico.map(h => h.label),
             datasets: [
-                {
-                    label: 'Receitas',
-                    data: historico.map(h => h.receitas),
-                    backgroundColor: 'rgba(40, 167, 69, 0.7)',
-                },
-                {
-                    label: 'Despesas',
-                    data: historico.map(h => h.despesas),
-                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
-                },
+                { label: 'Receitas',  data: historico.map(h => h.receitas),  backgroundColor: 'rgba(22,163,74,.7)' },
+                { label: 'Despesas',  data: historico.map(h => h.despesas),  backgroundColor: 'rgba(220,38,38,.7)' },
             ]
         },
         options: {
@@ -209,31 +277,18 @@
         }
     });
 
-    // Gráfico de pizza: categorias
     {% if por_categoria %}
     const ctxCat = document.getElementById('graficoCategorias').getContext('2d');
-    const cores = [
-        '#4dc9f6','#f67019','#f53794','#537bc4','#acc236',
-        '#166a8f','#00a950','#58595b','#8549ba','#e8c33d'
-    ];
+    const cores = ['#2451a3','#f67019','#f53794','#537bc4','#acc236','#166a8f','#00a950','#58595b','#8549ba','#e8c33d'];
     new Chart(ctxCat, {
         type: 'doughnut',
         data: {
             labels: porCategoria.map(c => c.nome),
-            datasets: [{
-                data: porCategoria.map(c => c.total),
-                backgroundColor: cores.slice(0, porCategoria.length),
-            }]
+            datasets: [{ data: porCategoria.map(c => c.total), backgroundColor: cores.slice(0, porCategoria.length) }]
         },
-        options: {
-            responsive: true,
-            plugins: { legend: { position: 'bottom' } }
-        }
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
     });
     {% endif %}
 </script>
-
-    </div><!-- /sidebar-content -->
-</div><!-- /page-wrapper -->
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Receitas — Smart Money</title>
+    <title>Receitas Fixas — Smart Money</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -67,10 +67,10 @@
       <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Assinaturas">
         <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Assinaturas</span>
       </a>
-      <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item active" title="Receitas">
+      <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
         <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
       </a>
-      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item active" title="Rec. Fixas">
         <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
       </a>
       <div class="sm-nav-divider"></div>
@@ -108,7 +108,7 @@
       <div class="sm-topbar-left">
         <div class="sm-topbar-breadcrumb">
           <span>Lançamentos</span><span>›</span>
-          <strong style="color:var(--text-primary)">Receitas</strong>
+          <strong style="color:var(--text-primary)">Receitas Fixas</strong>
         </div>
       </div>
       <div class="sm-topbar-right">
@@ -120,56 +120,78 @@
     </header>
     <main class="sm-main sm-animate">
       <div class="sm-page-header">
-        <h1 class="sm-page-title">Receitas</h1>
-        <p class="sm-page-subtitle">Entram no saldo imediatamente</p>
+        <h1 class="sm-page-title">Receitas Fixas</h1>
+        <p class="sm-page-subtitle">Recorrentes — creditadas automaticamente no dia agendado</p>
       </div>
 
       <div class="sm-card mb-4">
+        <div class="sm-card-header">
+          <div>
+            <div class="sm-card-title">Nova Receita Fixa</div>
+            <div class="sm-card-subtitle">Saldo creditado automaticamente no dia agendado</div>
+          </div>
+        </div>
         <div class="sm-card-body">
-          <form id="formAvulsa">
+          <form id="formFixa">
             <div class="row g-3 align-items-end">
-              <div class="col-md-4">
-                <label class="sm-form-label">Descrição</label>
-                <input type="text" class="sm-form-control" id="descAvulsa" placeholder="Ex: Freela, Venda..." required>
-              </div>
               <div class="col-md-3">
+                <label class="sm-form-label">Descrição</label>
+                <input type="text" class="sm-form-control" id="descFixa" placeholder="Ex: Salário, Aluguel..." required>
+              </div>
+              <div class="col-md-2">
                 <label class="sm-form-label">Categoria</label>
-                <select id="catAvulsa" class="sm-form-select"><option value="">Selecione...</option></select>
+                <select id="catFixa" class="sm-form-select"><option value="">Selecione...</option></select>
               </div>
               <div class="col-md-2">
                 <label class="sm-form-label">Valor R$</label>
-                <input type="number" class="sm-form-control" id="valorAvulsa" placeholder="0,00" step="0.01" min="0.01" required>
+                <input type="number" class="sm-form-control" id="valorFixa" placeholder="0,00" step="0.01" min="0.01" required>
               </div>
               <div class="col-md-2">
                 <label class="sm-form-label">Conta</label>
-                <select id="contaAvulsa" class="sm-form-select"><option value="">Selecione...</option></select>
+                <select id="contaFixa" class="sm-form-select"><option value="">Selecione...</option></select>
               </div>
-              <div class="col-md-1 d-flex align-items-end">
+              <div class="col-md-2">
+                <label class="sm-form-label">Quando receber</label>
+                <select id="modoDia" class="sm-form-select">
+                  <option value="fixo">Dia fixo do mês</option>
+                  <option value="primeiro_util">1º dia útil</option>
+                  <option value="ultimo_util">Último dia útil</option>
+                </select>
+              </div>
+              <div class="col-md-1" id="campoDiaFixo">
+                <label class="sm-form-label">Dia</label>
+                <select id="diaFixa" class="sm-form-select"><option value="">—</option></select>
+              </div>
+              <div class="col-md-1 d-flex align-items-end" id="btnAddFixa">
                 <button type="submit" class="sm-btn sm-btn-success w-100"><i class="ti ti-plus"></i></button>
               </div>
             </div>
           </form>
+          <div class="alert alert-info py-2 small mt-3 mb-0" style="font-size:.78rem">
+            <strong>Como funciona:</strong> ao cadastrar, a receita <strong>não</strong> entra no saldo imediatamente.
+            O crédito é gerado automaticamente no dia escolhido de cada mês.
+          </div>
         </div>
       </div>
 
       <div class="sm-card">
         <div class="sm-card-header">
-          <div id="toolbarAvulsa"></div>
+          <div id="toolbarFixa"></div>
           <div class="d-flex align-items-center gap-2">
-            <span class="sm-text-muted" style="font-size:.75rem" id="infoAvulsa">—</span>
-            <select id="ippAvulsa" class="sm-form-select" style="width:80px;height:30px;font-size:.78rem;padding:0 28px 0 8px;">
+            <span class="sm-text-muted" style="font-size:.75rem" id="infoFixa">—</span>
+            <select id="ippFixa" class="sm-form-select" style="width:80px;height:30px;font-size:.78rem;padding:0 28px 0 8px;">
               <option value="10">10</option><option value="25">25</option><option value="50">50</option>
             </select>
           </div>
         </div>
         <div class="sm-table-wrap">
           <table class="sm-table">
-            <thead id="theadAvulsa"></thead>
-            <tbody id="tabelaAvulsas"></tbody>
+            <thead id="theadFixa"></thead>
+            <tbody id="tabelaFixas"></tbody>
           </table>
         </div>
         <div class="d-flex justify-content-center py-3">
-          <nav><ul class="pagination pagination-sm mb-0" id="pagAvulsa"></ul></nav>
+          <nav><ul class="pagination pagination-sm mb-0" id="pagFixa"></ul></nav>
         </div>
       </div>
     </main>
@@ -208,49 +230,18 @@ function smToggleSidebar() {
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     // ── Paginador genérico ──────────────────────────────────
-    function criarPaginador(tbody, selectLinhas, ulPag, infoSpan) {
-        let linhas = [], pagAtual = 1;
-        const ipp  = () => parseInt(selectLinhas.value);
-        const tp   = () => Math.max(1, Math.ceil(linhas.length / ipp()));
-
-        function render() {
-            const total = linhas.length, pg = tp();
-            pagAtual = Math.min(pagAtual, pg);
-            const ini = (pagAtual - 1) * ipp(), fim = Math.min(ini + ipp(), total);
-            linhas.forEach((tr, i) => tr.style.display = (i >= ini && i < fim) ? '' : 'none');
-            if (infoSpan) infoSpan.textContent = total === 0 ? 'Nenhum registro'
-                : `Mostrando ${ini+1}–${fim} de ${total} registro${total!==1?'s':''}`;
-            ulPag.innerHTML = '';
-            let b = Math.max(1, pagAtual - 2), e = Math.min(pg, b + 4);
-            if (e - b < 4) b = Math.max(1, e - 4);
-            const add = (lbl, p, dis, act) => {
-                const li = document.createElement('li');
-                li.className = `page-item${dis?' disabled':''}${act?' active':''}`;
-                li.innerHTML = `<button class="page-link">${lbl}</button>`;
-                if (!dis && !act) li.querySelector('button').onclick = () => { pagAtual = p; render(); };
-                ulPag.appendChild(li);
-            };
-            add('«',1,pagAtual===1); add('‹',pagAtual-1,pagAtual===1);
-            for (let p=b;p<=e;p++) add(p,p,false,p===pagAtual);
-            add('›',pagAtual+1,pagAtual===pg); add('»',pg,pagAtual===pg);
-        }
-        selectLinhas.addEventListener('change', () => { pagAtual=1; render(); });
-        return {
-            adicionar(tr) { linhas.push(tr); tbody.appendChild(tr); render(); },
-            remover(tr)   { linhas = linhas.filter(l=>l!==tr); tr.remove(); render(); },
-        };
-    }
-
-    const pagAvulsa = new TabelaManager({
-        tbody: document.getElementById('tabelaAvulsas'), thead: document.getElementById('theadAvulsa'),
-        toolbar: document.getElementById('toolbarAvulsa'), selLinhas: document.getElementById('ippAvulsa'),
-        ulPag: document.getElementById('pagAvulsa'), infoSpan: document.getElementById('infoAvulsa'),
-        onEditar:  (meta, tr) => abrirEdicaoAvulsa(meta, tr),
+    const pagFixa = new TabelaManager({
+        tbody: document.getElementById('tabelaFixas'), thead: document.getElementById('theadFixa'),
+        toolbar: document.getElementById('toolbarFixa'), selLinhas: document.getElementById('ippFixa'),
+        ulPag: document.getElementById('pagFixa'), infoSpan: document.getElementById('infoFixa'),
+        onEditar:  (meta, tr) => abrirEdicaoFixa(meta, tr),
         colunas: [
             { chave: 'descricao', tipo: 'texto',  label: 'Descrição'           },
             { chave: 'categoria', tipo: 'texto',  label: 'Categoria', opcoes: true },
             { chave: 'conta',     tipo: 'texto',  label: 'Conta',     opcoes: true },
+            { chave: 'quando',    tipo: 'texto',  label: 'Quando',    opcoes: true },
             { chave: 'valor',     tipo: 'numero', label: 'Valor'               },
+            { chave: 'status',    tipo: 'texto',  label: 'Status',    opcoes: true },
             { chave: 'acoes',     tipo: 'acoes',  label: 'Ações'               },
         ]
     });
@@ -258,7 +249,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // ── Selects compartilhados ──────────────────────────────
     function carregarCategorias() {
         fetch("/api/categorias?tipo=receita").then(r=>r.json()).then(data => {
-            [document.getElementById("catAvulsa")].forEach(sel => {
+            [document.getElementById("catFixa")].forEach(sel => {
                 sel.innerHTML = '<option value="">Selecione...</option>';
                 data.categorias.forEach(c => { const o=document.createElement("option"); o.value=c.nome; o.textContent=c.nome; sel.appendChild(o); });
             });
@@ -266,7 +257,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function carregarContas() {
         fetch("/api/contas").then(r=>r.json()).then(data => {
-            [document.getElementById("contaAvulsa")].forEach(sel => {
+            [document.getElementById("contaFixa")].forEach(sel => {
                 sel.innerHTML = '<option value="">Selecione...</option>';
                 data.contas.forEach(c => { const o=document.createElement("option"); o.value=c.id; o.textContent=c.nome; sel.appendChild(o); });
             });
@@ -274,61 +265,96 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Dias 1-31
+    const selDia = document.getElementById("diaFixa");
     for (let d=1;d<=31;d++) { const o=document.createElement("option"); o.value=d; o.textContent=`Dia ${d}`; selDia.appendChild(o); }
 
     // Mostra/oculta campo de dia conforme modo
+    const selModo = document.getElementById("modoDia");
+    const campoDiaFixo = document.getElementById("campoDiaFixo");
+    const btnAddFixa   = document.getElementById("btnAddFixa");
     selModo.addEventListener("change", function() {
         const fixo = this.value === 'fixo';
+        campoDiaFixo.style.display = fixo ? '' : 'none';
         // Ajusta colunas do botão
+        btnAddFixa.className = fixo ? 'col-md-1 d-flex align-items-end' : 'col-md-2 d-flex align-items-end';
     });
 
     // ── Tabela avulsas ──────────────────────────────────────
-    function addAvulsa(id, descricao, categoria, conta_nome, valor) {
+    function addFixa(rf) {
         const tr = document.createElement("tr");
-        tr.dataset.id = id;
-        const v = parseFloat(valor).toLocaleString('pt-BR', {minimumFractionDigits:2});
+        tr.dataset.id = rf.id;
+        const v = parseFloat(rf.valor).toLocaleString('pt-BR', {minimumFractionDigits:2});
+        const statusBadge = rf.ativa
+            ? `<span class="badge bg-success">Ativa</span>`
+            : `<span class="badge bg-secondary">Pausada</span>`;
+        const btnPausar = rf.ativa
+            ? `<button class="btn btn-warning btn-sm me-1 btn-pausar" data-ativa="0">Pausar</button>`
+            : `<button class="btn btn-success btn-sm me-1 btn-pausar" data-ativa="1">Ativar</button>`;
+
+        const modoLabels = {
+            'fixo':          `Dia ${rf.dia_mes}`,
+            'primeiro_util': '1º dia útil',
+            'ultimo_util':   'Último dia útil',
+        };
+        const quandoLabel = modoLabels[rf.modo_dia] || `Dia ${rf.dia_mes}`;
+
         tr.innerHTML = `
-            <td>${descricao}</td>
-            <td><span class="badge bg-light text-dark border">${categoria||'—'}</span></td>
-            <td>${conta_nome||'—'}</td>
-            <td class="text-end fw-bold text-success">R$ ${v}</td>
-            <td class="text-center"><button class="btn btn-outline-danger btn-sm">Remover</button></td>`;
-        tr.querySelector("button").addEventListener("click", () => {
-            if (!confirm("Remover esta receita? O saldo será revertido.")) return;
-            fetch("/api/remover_lancamento", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) })
-                .then(r=>r.json()).then(d => { if(d.success) pagAvulsa.remover(tr); else alert("Erro: "+(d.error||"")); });
+            <td>${rf.descricao}</td>
+            <td><span class="badge bg-light text-dark border">${rf.categoria||'—'}</span></td>
+            <td>${rf.conta_nome||'—'}</td>
+            <td class="text-center fw-bold">${quandoLabel}</td>
+            <td class="text-end fw-bold text-primary">R$ ${v}</td>
+            <td class="text-center">${statusBadge}</td>
+            <td class="text-center">${btnPausar}<button class="btn btn-outline-danger btn-sm btn-remover">Remover</button></td>`;
+
+        tr.querySelector(".btn-pausar").addEventListener("click", function() {
+            const novaAtiva = parseInt(this.dataset.ativa);
+            fetch("/api/pausar_receita_fixa", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:rf.id, ativa:novaAtiva}) })
+                .then(r=>r.json()).then(d => { if(d.success) { pagFixa.remover(tr); addFixa({...rf, ativa:novaAtiva}); } });
         });
-        pagAvulsa.adicionar(tr, {
-            descricao: descricao,
-            categoria: categoria || "",
-            conta:     conta_nome || "",
-            valor:     parseFloat(valor),
+        tr.querySelector(".btn-remover").addEventListener("click", () => {
+            if (!confirm(`Remover "${rf.descricao}"? Ocorrências já lançadas permanecem.`)) return;
+            fetch("/api/remover_receita_fixa", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:rf.id}) })
+                .then(r=>r.json()).then(d => { if(d.success) pagFixa.remover(tr); else alert("Erro: "+(d.error||"")); });
+        });
+        pagFixa.adicionar(tr, {
+            descricao: rf.descricao,
+            categoria: rf.categoria || "",
+            conta:     rf.conta_nome || "",
+            quando:    quandoLabel,
+            valor:     parseFloat(rf.valor),
+            status:    rf.ativa ? "Ativa" : "Pausada",
         });
     }
 
-    document.getElementById("formAvulsa").addEventListener("submit", function(e) {
+    document.getElementById("formFixa").addEventListener("submit", function(e) {
         e.preventDefault();
-        const descricao = document.getElementById("descAvulsa").value.trim();
-        const categoria = document.getElementById("catAvulsa").value;
-        const valor     = document.getElementById("valorAvulsa").value;
-        const id_conta  = document.getElementById("contaAvulsa").value;
-        const sel       = document.getElementById("contaAvulsa");
-        const conta_nome= sel.options[sel.selectedIndex].text;
-        fetch("/api/adicionar_lancamento", { method:"POST", headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({descricao, tipo:"receita", valor, categoria, id_conta, tipo_receita:"avulsa"})
+        const descricao  = document.getElementById("descFixa").value.trim();
+        const categoria  = document.getElementById("catFixa").value;
+        const valor      = document.getElementById("valorFixa").value;
+        const id_conta   = document.getElementById("contaFixa").value;
+        const selC       = document.getElementById("contaFixa");
+        const conta_nome = selC.options[selC.selectedIndex].text;
+        const modo_dia   = document.getElementById("modoDia").value;
+        const dia_mes    = modo_dia === 'fixo' ? (document.getElementById("diaFixa").value || 1) : 1;
+
+        if (modo_dia === 'fixo' && !dia_mes) { alert("Selecione o dia do mês"); return; }
+
+        fetch("/api/adicionar_receita_fixa", { method:"POST", headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({descricao, categoria, valor, id_conta, dia_mes, modo_dia})
         }).then(r=>r.json()).then(d => {
-            if(d.success) { addAvulsa(d.id, descricao, categoria, conta_nome, valor); this.reset(); }
+            if(d.success) { addFixa({id:d.id, descricao, categoria, conta_nome, dia_mes:parseInt(dia_mes), valor, ativa:1, modo_dia}); this.reset(); selModo.value='fixo'; campoDiaFixo.style.display=''; btnAddFixa.className='col-md-1 d-flex align-items-end'; }
             else alert("Erro: "+(d.error||""));
         });
     });
 
-    // ── Tabela fixas ────────────────────────────────────────
+
     const editorAvulsa = new EditorPanel('editorAvulsa');
     const editorFixa   = new EditorPanel('editorFixa');
 
     function abrirEdicaoAvulsa(meta, tr) {
-        fetch('/api/categorias?tipo=receita').then(r => r.json()).then(catData => {
-            const cats = catData.categorias.map(c => c.nome);
+        fetch('/api/categorias?tipo=receita').then(r => r.json()).then(d => {
+            const cats = d.categorias.map(c => c.nome);
             editorAvulsa.abrir({
                 titulo: 'Editar Receita',
                 campos: [
@@ -349,10 +375,49 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Carregar lançamentos existentes
-    const dadosReceita = {{ receitas | tojson | safe }};
-    if (Array.isArray(dadosReceita)) dadosReceita.forEach(l => {
-        if (l[2] === "receita") addAvulsa(l[0], l[1], l[4]||"", l[5]||"", l[3]);
+    function abrirEdicaoFixa(meta, tr) {
+        fetch('/api/categorias?tipo=receita').then(r => r.json()).then(d => {
+            const cats = d.categorias.map(c => c.nome);
+            const modos = [
+                { value: 'fixo',          label: 'Dia fixo do mês' },
+                { value: 'primeiro_util', label: '1º dia útil' },
+                { value: 'ultimo_util',   label: 'Último dia útil' },
+            ];
+            const dias = Array.from({length:31}, (_,i) => ({value: String(i+1), label: 'Dia ' + (i+1)}));
+            editorFixa.abrir({
+                titulo: 'Editar Receita Fixa',
+                campos: [
+                    { chave: 'descricao', tipo: 'text',   label: 'Descrição', valor: meta.descricao, required: true },
+                    { chave: 'categoria', tipo: 'select', label: 'Categoria', valor: meta.categoria, opcoes: cats },
+                    { chave: 'valor',     tipo: 'number', label: 'Valor (R$)', valor: meta.valor, min: 0.01, step: 0.01, required: true },
+                    { chave: 'modo_dia',  tipo: 'select', label: 'Quando receber', valor: meta.modo_dia || 'fixo', opcoes: modos },
+                    { chave: 'dia_mes',   tipo: 'select', label: 'Dia do mês', valor: String(meta.dia_mes), opcoes: dias },
+                ],
+                onSalvar: (dados) => apiAtualizar('/api/atualizar_receita_fixa', {
+                    id: tr.dataset.id, descricao: dados.descricao,
+                    categoria: dados.categoria, valor: parseFloat(dados.valor),
+                    modo_dia: dados.modo_dia, dia_mes: parseInt(dados.dia_mes),
+                }).then(ok => {
+                    if (!ok) return false;
+                    pagFixa.remover(tr);
+                    addFixa({...meta, descricao: dados.descricao, categoria: dados.categoria,
+                        valor: parseFloat(dados.valor), modo_dia: dados.modo_dia, dia_mes: parseInt(dados.dia_mes)});
+                    return true;
+                })
+            });
+        });
+    }
+
+    // ── Carregar existentes ─────────────────────────────────
+    // receitas fixas carregadas via API abaixo
+    receitasExistentes.forEach(l => {
+        if (l[2] === "receita") addAvulsa(l[0], l[1], l[4]||'', l[5]||'', l[3]);
+    });
+    fetch("/api/receitas_fixas").then(r=>r.json()).then(data => data.receitas_fixas.forEach(rf => addFixa(rf)));
+
+    // Carregar receitas fixas
+    fetch("/api/receitas_fixas").then(r=>r.json()).then(data => {
+        if (data.receitas_fixas) data.receitas_fixas.forEach(rf => addFixa(rf));
     });
 });
 </script>

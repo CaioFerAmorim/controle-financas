@@ -2,111 +2,114 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Cadastro - Controle de Finanças</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro — Smart Money</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
     <style>
-        body { background: #f0f4f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .auth-card { background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.10); padding: 40px 36px; width: 100%; max-width: 420px; }
-        .auth-logo { width: 70px; height: 70px; }
-        .btn-primary-green { background: #1A4D2E; border: none; color: #fff; width: 100%; padding: 10px; border-radius: 8px; font-weight: 500; transition: background .2s; }
-        .btn-primary-green:hover { background: #143d25; color: #fff; }
-        .form-control:focus { border-color: #1A4D2E; box-shadow: 0 0 0 3px rgba(26,77,46,.15); }
-        .link-green { color: #1A4D2E; text-decoration: none; }
-        .link-green:hover { text-decoration: underline; }
-        .strength-bar { height: 4px; border-radius: 2px; transition: all .3s; background: #dee2e6; margin-top: 6px; }
-        .strength-bar div { height: 100%; border-radius: 2px; transition: all .3s; }
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'DM Sans',system-ui,sans-serif;background:#f4f6fb;display:flex;align-items:center;justify-content:center;min-height:100vh;-webkit-font-smoothing:antialiased;padding:24px 16px}
+        .auth-wrap{width:100%;max-width:420px}
+        .auth-card{background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(15,45,94,.10);padding:40px 36px}
+        .auth-logo-icon{width:44px;height:44px;background:#0f2d5e;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+        .auth-logo-icon svg{width:22px;height:22px}
+        .auth-title{font-size:1.15rem;font-weight:700;color:#0f1f3d;text-align:center;letter-spacing:-.3px}
+        .auth-sub{font-size:.78rem;color:#8394ae;text-align:center;margin-top:4px;margin-bottom:24px}
+        .form-label{display:block;font-size:.68rem;font-weight:700;color:#8394ae;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+        .form-control{width:100%;height:40px;padding:0 12px;border:1.5px solid #e2e8f2;border-radius:10px;font-family:inherit;font-size:.9rem;color:#0f1f3d;background:#fff;outline:none;transition:border-color .15s,box-shadow .15s;margin-bottom:16px}
+        .form-control:focus{border-color:#2451a3;box-shadow:0 0 0 3px rgba(36,81,163,.1)}
+        .form-control::placeholder{color:#b0bdd0;font-size:.84rem}
+        .btn-primary{width:100%;height:42px;background:#0f2d5e;color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:background .15s;margin-top:4px}
+        .btn-primary:hover{background:#1a3f7a}
+        hr{border:none;border-top:1px solid #f0f3f8;margin:24px 0}
+        .auth-footer{font-size:.78rem;color:#8394ae;text-align:center}
+        .auth-footer a{color:#2451a3;text-decoration:none;font-weight:600}
+        .auth-footer a:hover{text-decoration:underline}
+        .alert{padding:10px 14px;border-radius:8px;font-size:.8rem;margin-bottom:16px}
+        .alert-danger{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+        .alert-warning{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+        .alert-success{background:#dcfce7;color:#166534;border:1px solid #86efac}
+        .strength-bar{height:3px;border-radius:2px;background:#e2e8f2;margin-top:-10px;margin-bottom:6px}
+        .strength-bar div{height:100%;border-radius:2px;transition:all .3s;width:0%}
+        .strength-text{font-size:.68rem;color:#8394ae;margin-bottom:16px;display:block}
+        .match-text{font-size:.68rem;margin-bottom:16px;display:block}
     </style>
 </head>
 <body>
-    <div class="auth-card">
-        <div class="text-center mb-4">
-            <img src="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/e24343c1468b7c5f06a8230f0913f834dab0635b/static/img/logoWildMoney.png"
-                 alt="Logo" class="auth-logo mb-2">
-            <h4 class="mb-0" style="color:#1A4D2E;font-weight:700;">Criar conta</h4>
-            <small class="text-muted">Comece a controlar suas finanças</small>
-        </div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, message in messages %}
-        <div class="alert alert-{{ category }} py-2 small">{{ message }}</div>
-        {% endfor %}
-        {% endwith %}
-
-        <form method="POST" action="{{ url_for('cadastro') }}">
-            <div class="mb-3">
-                <label class="form-label small fw-semibold text-muted">Nome completo</label>
-                <input type="text" name="nome" class="form-control" placeholder="Seu nome"
-                       value="{{ nome or '' }}" autocomplete="name" required autofocus>
-            </div>
-            <div class="mb-3">
-                <label class="form-label small fw-semibold text-muted">Email</label>
-                <input type="email" name="email" class="form-control" placeholder="seu@email.com"
-                       value="{{ email or '' }}" autocomplete="email" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label small fw-semibold text-muted">Senha</label>
-                <input type="password" name="senha" id="senha" class="form-control"
-                       placeholder="Mínimo 8 caracteres" autocomplete="new-password" required
-                       minlength="8" oninput="atualizarForca(this.value)">
-                <div class="strength-bar"><div id="forca" style="width:0%"></div></div>
-                <small id="forcaTexto" class="text-muted" style="font-size:11px;"></small>
-            </div>
-            <div class="mb-4">
-                <label class="form-label small fw-semibold text-muted">Confirmar senha</label>
-                <input type="password" name="confirmar_senha" id="confirmarSenha" class="form-control"
-                       placeholder="Repita a senha" autocomplete="new-password" required
-                       oninput="verificarSenhas()">
-                <small id="senhaMatch" style="font-size:11px;"></small>
-            </div>
-            <button type="submit" class="btn btn-primary-green">Criar conta</button>
-        </form>
-
-        <hr class="my-4">
-        <p class="text-center text-muted small mb-0">
-            Já tem conta? <a href="{{ url_for('login') }}" class="link-green fw-semibold">Fazer login</a>
-        </p>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23"></line>
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+      </svg>
     </div>
+    <div class="auth-title">Criar conta</div>
+    <div class="auth-sub">Comece a controlar suas finanças</div>
 
-    <script>
-    function atualizarForca(senha) {
-        const barra = document.getElementById('forca');
-        const texto = document.getElementById('forcaTexto');
-        let pontos = 0;
-        if (senha.length >= 8)  pontos++;
-        if (senha.length >= 12) pontos++;
-        if (/[A-Z]/.test(senha)) pontos++;
-        if (/[0-9]/.test(senha)) pontos++;
-        if (/[^A-Za-z0-9]/.test(senha)) pontos++;
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
 
-        const config = [
-            { w: '0%',   cor: '#dee2e6', label: '' },
-            { w: '25%',  cor: '#dc3545', label: 'Muito fraca' },
-            { w: '50%',  cor: '#fd7e14', label: 'Fraca' },
-            { w: '75%',  cor: '#ffc107', label: 'Boa' },
-            { w: '90%',  cor: '#20c997', label: 'Forte' },
-            { w: '100%', cor: '#1A4D2E', label: 'Muito forte' },
-        ];
-        const c = config[Math.min(pontos, 5)];
-        barra.style.width = c.w;
-        barra.style.background = c.cor;
-        texto.textContent = c.label;
-        texto.style.color = c.cor;
-    }
+    <form method="POST" action="{{ url_for('cadastro') }}">
+      <label class="form-label">Nome completo</label>
+      <input type="text" name="nome" class="form-control" placeholder="Seu nome"
+             value="{{ nome or '' }}" autocomplete="name" required autofocus>
+      <label class="form-label">Email</label>
+      <input type="email" name="email" class="form-control" placeholder="seu@email.com"
+             value="{{ email or '' }}" autocomplete="email" required>
+      <label class="form-label">Senha</label>
+      <input type="password" name="senha" id="senha" class="form-control"
+             placeholder="Mínimo 8 caracteres" autocomplete="new-password" required
+             minlength="8" oninput="atualizarForca(this.value)">
+      <div class="strength-bar"><div id="forca"></div></div>
+      <span class="strength-text" id="forcaTexto"></span>
+      <label class="form-label">Confirmar senha</label>
+      <input type="password" name="confirmar_senha" id="confirmarSenha" class="form-control"
+             placeholder="Repita a senha" autocomplete="new-password" required
+             oninput="verificarSenhas()" style="margin-bottom:4px">
+      <span class="match-text" id="senhaMatch"></span>
+      <button type="submit" class="btn-primary">Criar conta</button>
+    </form>
 
-    function verificarSenhas() {
-        const s1 = document.getElementById('senha').value;
-        const s2 = document.getElementById('confirmarSenha').value;
-        const el = document.getElementById('senhaMatch');
-        if (!s2) { el.textContent = ''; return; }
-        if (s1 === s2) {
-            el.textContent = '✓ Senhas coincidem';
-            el.style.color = '#1A4D2E';
-        } else {
-            el.textContent = '✗ Senhas não coincidem';
-            el.style.color = '#dc3545';
-        }
-    }
-    </script>
+    <hr>
+    <p class="auth-footer">Já tem conta? <a href="{{ url_for('login') }}">Fazer login</a></p>
+  </div>
+</div>
+<script>
+function atualizarForca(senha) {
+    const barra = document.getElementById('forca');
+    const texto = document.getElementById('forcaTexto');
+    let p = 0;
+    if (senha.length >= 8)  p++;
+    if (senha.length >= 12) p++;
+    if (/[A-Z]/.test(senha)) p++;
+    if (/[0-9]/.test(senha)) p++;
+    if (/[^A-Za-z0-9]/.test(senha)) p++;
+    const cfg = [
+        {w:'0%',   cor:'#e2e8f2', label:''},
+        {w:'25%',  cor:'#dc2626', label:'Muito fraca'},
+        {w:'50%',  cor:'#d97706', label:'Fraca'},
+        {w:'75%',  cor:'#ca8a04', label:'Boa'},
+        {w:'90%',  cor:'#16a34a', label:'Forte'},
+        {w:'100%', cor:'#0f2d5e', label:'Muito forte'},
+    ][Math.min(p,5)];
+    barra.style.width = cfg.w;
+    barra.style.background = cfg.cor;
+    texto.textContent = cfg.label;
+    texto.style.color = cfg.cor;
+}
+function verificarSenhas() {
+    const s1 = document.getElementById('senha').value;
+    const s2 = document.getElementById('confirmarSenha').value;
+    const el = document.getElementById('senhaMatch');
+    if (!s2) { el.textContent = ''; return; }
+    if (s1 === s2) { el.textContent = '✓ Senhas coincidem'; el.style.color = '#16a34a'; }
+    else           { el.textContent = '✗ Senhas não coincidem'; el.style.color = '#dc2626'; }
+}
+</script>
 </body>
 </html>

@@ -332,12 +332,13 @@ body {
   width: 100%; border-collapse: collapse;
   font-size: 0.82rem;
 }
-.sm-table thead th {
-  background: var(--blue-800); color: #fff;
+.sm-table thead th,
+.sm-table > thead > tr > th {
+  background: var(--blue-800) !important; color: #fff !important;
   padding: 10px 14px;
   font-size: 0.65rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: .6px;
-  white-space: nowrap; border: none;
+  white-space: nowrap; border: none !important;
 }
 .sm-table thead th:first-child { border-radius: 0; }
 .sm-table tbody td {

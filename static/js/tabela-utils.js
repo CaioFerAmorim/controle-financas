@@ -81,16 +81,16 @@ class TabelaManager {
 }
 .tm-chip {
     display: inline-flex; align-items: center; gap: 5px;
-    background: #e8f4ee; border: 1px solid #b8dfc9;
+    background: var(--blue-50, #f0f4fb); border: 1px solid var(--blue-100, #e8eef8);
     border-radius: 99px; padding: 3px 10px 3px 12px;
     font-size: 12px; cursor: pointer; user-select: none;
-    color: #1A4D2E; transition: background .15s;
+    color: var(--blue-800, #0f2d5e); transition: background .15s;
     white-space: nowrap;
 }
-.tm-chip:hover { background: #d4ecde; }
+.tm-chip:hover { background: var(--blue-100, #e8eef8); }
 .tm-chip .tm-chip-x {
     background: none; border: none; padding: 0; margin: 0;
-    font-size: 14px; line-height: 1; color: #1A4D2E;
+    font-size: 14px; line-height: 1; color: var(--blue-800, #0f2d5e);
     cursor: pointer; opacity: .6; font-weight: 700;
     display: flex; align-items: center;
 }
@@ -102,7 +102,7 @@ class TabelaManager {
     font-size: 12px; color: #6c757d; cursor: pointer;
     transition: all .15s;
 }
-.tm-add-btn:hover { border-color: #1A4D2E; color: #1A4D2E; background: #f0f7f0; }
+.tm-add-btn:hover { border-color: var(--blue-600, #2451a3); color: var(--blue-800, #0f2d5e); background: var(--blue-50, #f0f4fb); }
 
 /* Painel dropdown */
 .tm-painel {
@@ -126,7 +126,7 @@ class TabelaManager {
     background: none; width: 100%; text-align: left;
 }
 .tm-painel-campo:hover  { background: #e9ecef; }
-.tm-painel-campo.active { background: #e8f4ee; color: #1A4D2E; font-weight: 600; }
+.tm-painel-campo.active { background: var(--blue-50, #f0f4fb); color: var(--blue-800, #0f2d5e); font-weight: 600; }
 .tm-painel-direita {
     flex: 1; padding: 14px 16px; display: flex;
     flex-direction: column; gap: 10px;
@@ -174,9 +174,15 @@ class TabelaManager {
 .tm-sort-row th {
     cursor: pointer; user-select: none; white-space: nowrap;
     vertical-align: middle;
+    background: var(--blue-800, #0f2d5e) !important;
+    color: #fff !important;
+    font-size: 0.65rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .6px;
+    padding: 10px 14px; border: none !important;
 }
 .tm-sort-row th.no-sort { cursor: default; }
-.tm-sort-ico { font-size: 9px; opacity: .4; margin-left: 3px; transition: opacity .15s; }
+.tm-sort-ico { font-size: 9px; opacity: .5; margin-left: 4px; transition: opacity .15s; }
+.tm-sort-row th:hover .tm-sort-ico { opacity: .9; }
         `;
         document.head.appendChild(s);
     }
