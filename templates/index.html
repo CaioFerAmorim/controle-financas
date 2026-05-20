@@ -199,21 +199,13 @@
       </a>
     </nav>
     <div class="sm-sb-footer">
-      <div class="sm-sb-user">
+      <div class="sm-sb-user sm-user-trigger" title="Menu do usuário">
         <div class="sm-sb-avatar">{{ session.user_nome[0]|upper }}</div>
         <div class="sm-sb-user-info">
           <div class="sm-sb-username">{{ session.user_nome }}</div>
           <div class="sm-sb-userrole">{{ session.user_role }}</div>
         </div>
       </div>
-      {% if session.user_role == 'admin' %}
-      <a href="{{ url_for('admin') }}" class="sm-nav-item" title="Admin">
-        <i class="ti ti-shield sm-nav-icon"></i><span class="sm-nav-label">Admin</span>
-      </a>
-      {% endif %}
-      <a href="{{ url_for('logout') }}" class="sm-sb-logout" title="Sair">
-        <i class="ti ti-logout sm-nav-icon"></i><span class="sm-nav-label">Sair</span>
-      </a>
     </div>
   </aside>
 
@@ -230,7 +222,7 @@
         <a href="{{ url_for('lancamentosReceita') }}" class="sm-btn sm-btn-success sm-btn-sm">
           <i class="ti ti-plus"></i> Nova Receita
         </a>
-        <div class="sm-topbar-user">
+        <div class="sm-topbar-user sm-user-trigger" title="Menu do usuário">
           <div class="sm-topbar-avatar">{{ session.user_nome[0]|upper }}</div>
           {{ session.user_nome }}
         </div>
@@ -701,6 +693,12 @@ function atualizarDashboardGeral() {
 
 setInterval(atualizarDashboardGeral, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) atualizarDashboardGeral(); });
+</script>
+<script src="{{ url_for('static', filename='js/user-menu.js') }}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    SMUserMenu.init('{{ session.user_nome }}', '{{ session.user_role }}');
+  });
 </script>
 </body>
 </html>

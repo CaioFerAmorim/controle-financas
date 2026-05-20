@@ -465,3 +465,96 @@ body {
 .sm-text-blue    { color: var(--blue-800); }
 .sm-fw-bold      { font-weight: 700; }
 .sm-gap { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+
+/* ══════════════════════════════════════════════════════════════════
+   USER MENU — Popover ancorado no avatar
+══════════════════════════════════════════════════════════════════ */
+.sm-user-menu-wrap { position: relative; }
+
+.sm-user-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(15,45,94,.15), 0 2px 8px rgba(15,45,94,.08);
+  width: 220px;
+  z-index: 9999;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(6px) scale(.98);
+  transition: opacity .18s ease, transform .18s ease;
+  pointer-events: none;
+}
+.sm-user-menu.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: all;
+}
+
+/* Header do menu */
+.sm-user-menu-header {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.sm-user-menu-name {
+  font-size: .84rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.sm-user-menu-role {
+  font-size: .68rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  text-transform: capitalize;
+}
+
+/* Itens */
+.sm-user-menu-body { padding: 6px; }
+.sm-user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: .82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  text-decoration: none;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: 'DM Sans', sans-serif;
+}
+.sm-user-menu-item:hover {
+  background: var(--blue-50);
+  color: var(--blue-800);
+}
+.sm-user-menu-item i {
+  font-size: 16px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.sm-user-menu-item.danger { color: var(--red); }
+.sm-user-menu-item.danger:hover { background: var(--red-bg); color: var(--red); }
+
+.sm-user-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+}
+
+/* Trigger — avatar clicável */
+.sm-user-trigger {
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background .12s;
+  padding: 2px;
+  user-select: none;
+}
+.sm-user-trigger:hover { background: var(--blue-50); }
+.sm-user-trigger.active { background: var(--blue-100); }
