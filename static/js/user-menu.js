@@ -43,7 +43,7 @@ const SMUserMenu = (() => {
                 <div class="sm-user-menu-role">${role}</div>
             </div>
             <div class="sm-user-menu-body">
-                <a href="#" class="sm-user-menu-item" id="sm-menu-config">
+                <a href="/configuracoes" class="sm-user-menu-item" id="sm-menu-config">
                     <i class="ti ti-settings"></i> Configurações
                 </a>
                 ${adminItem}
@@ -53,13 +53,8 @@ const SMUserMenu = (() => {
                 </a>
             </div>`;
 
-        // Configurações (placeholder por enquanto)
-        menu.querySelector('#sm-menu-config')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            _fechar();
-            // Futuro: abrir modal de configurações
-            WM.info('Configurações em breve!');
-        });
+        // Configurações — navega para /configuracoes
+        // (o href já cuida da navegação)
     }
 
     function _abrir(trigger, nome, role) {

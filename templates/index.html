@@ -11,116 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <style>
-        /* ── Abas de cartão ── */
-        .nav-tabs-cartao { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:20px; }
-        .nav-tabs-cartao .nav-link {
-            padding:6px 14px; border-radius:8px; font-size:.8rem; font-weight:500;
-            color:var(--text-secondary); background:var(--surface);
-            border:1px solid var(--border); text-decoration:none;
-            transition:all .15s; display:flex; align-items:center; gap:6px;
-        }
-        .nav-tabs-cartao .nav-link:hover  { background:var(--blue-50); color:var(--blue-800); border-color:var(--blue-100); }
-        .nav-tabs-cartao .nav-link.active { background:var(--blue-800); color:#fff; border-color:var(--blue-800); }
-        .badge-cartao { font-size:.62rem; background:rgba(255,255,255,.2); padding:1px 6px; border-radius:10px; }
-        .nav-link:not(.active) .badge-cartao { background:var(--blue-100); color:var(--blue-800); }
-
-        /* ── Cards KPI ── */
-        .kpi-card { position:relative; overflow:hidden; }
-        .kpi-card::after { content:''; position:absolute; top:0; left:0; width:4px; height:100%; border-radius:4px 0 0 4px; }
-        .kpi-card.green::after { background:var(--green); }
-        .kpi-card.amber::after { background:var(--amber); }
-        .kpi-card.blue::after  { background:var(--blue-600); }
-        .kpi-card.teal::after  { background:#0891b2; }
-        .kpi-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-        .kpi-value { font-size:1.5rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
-        .positive { color:var(--green); }
-        .negative { color:var(--red); }
-
-        /* ── Fatura info bar ── */
-        .fatura-info-bar {
-            background:var(--blue-50); border:1px solid var(--blue-100); border-radius:8px;
-            padding:8px 14px; font-size:.78rem; color:var(--text-secondary);
-            margin-bottom:16px;
-        }
-
-        /* ── Projeção cards ── */
-        .proj-card { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; min-width:160px; flex:1; box-shadow:var(--shadow); }
-        .proj-header { padding:10px 12px; display:flex; justify-content:space-between; align-items:center; }
-        .proj-pill { font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:10px; }
-        .proj-body { padding:10px 12px; }
-        .proj-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:.75rem; }
-        .proj-label { display:flex; align-items:center; gap:5px; color:var(--text-muted); }
-        .proj-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-        .proj-saldo { display:flex; justify-content:space-between; border-top:1px solid var(--border); padding-top:8px; margin-top:4px; }
-        .proj-saldo-label { font-size:.75rem; font-weight:600; color:var(--text-secondary); }
-        .proj-saldo-val { font-size:.82rem; font-weight:700; }
-
-        
-        .page-wrapper { display:flex; min-height:calc(100vh - 98px); }
-        .sidebar-nav  { width:200px; min-width:200px; flex-shrink:0; }
-        .sidebar-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#adb5bd; padding:4px 12px 10px; }
-        .sidebar-nav .nav-link { font-size:13px; padding:7px 12px; border-radius:6px; color:rgba(255,255,255,.8)!important; transition:background .15s,color .15s; }
-        .sidebar-nav .nav-link:hover { background:rgba(255,255,255,.1); color:#fff!important; }
-        .sidebar-nav .nav-link[aria-current="page"] { background:rgba(255,255,255,.15); color:#fff!important; font-weight:600; }
-        .sidebar-content { flex:1; min-width:0; padding:1.5rem; }
-
-        .card-dashboard { transition:transform .2s; border:none; box-shadow:0 4px 6px rgba(0,0,0,.1); }
-        .card-dashboard:hover { transform:translateY(-5px); }
-        ._pos { color:#28a745; }
-        ._neg { color:#dc3545; }
-        .quick-action-btn { transition:all .3s; }
-        .quick-action-btn:hover { transform:scale(1.05); }
-
-        /* Abas de cartão */
-        .nav-tabs-cartao { border-bottom:2px solid #dee2e6; margin-bottom:1.5rem; gap:4px; }
-        .nav-tabs-cartao .nav-link {
-            border:none; border-radius:8px 8px 0 0;
-            padding:8px 18px; font-size:13px; font-weight:500;
-            color:#6c757d; background:transparent;
-            transition:background .15s, color .15s;
-            border-bottom:2px solid transparent;
-            margin-bottom:-2px;
-        }
-        .nav-tabs-cartao .nav-link:hover { background:#f8f9fa; color:#343a40; }
-        .nav-tabs-cartao .nav-link.active {
-            color:#1A4D2E; border-bottom:2px solid #1A4D2E;
-            background:#fff; font-weight:600;
-        }
-        .nav-tabs-cartao .nav-link .badge-cartao {
-            font-size:10px; padding:2px 6px; border-radius:99px;
-            background:#f0f0f0; color:#6c757d; margin-left:6px;
-        }
-        .nav-tabs-cartao .nav-link.active .badge-cartao {
-            background:#1A4D2E; color:#fff;
-        }
-
-        /* Proj cards */
-        .proj-card { background:#fff; border:1px solid #e0e0e0; border-radius:12px; overflow:hidden; flex:1; min-width:150px; }
-        .proj-header { padding:10px 14px; display:flex; align-items:center; justify-content:space-between; }
-        .proj-body { padding:10px 14px 12px; }
-        .proj-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #f0f0f0; font-size:12px; }
-        .proj-row:last-of-type { border-bottom:none; }
-        .proj-label { color:#6c757d; display:flex; align-items:center; gap:5px; }
-        .proj-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; display:inline-block; }
-        .proj-saldo { display:flex; justify-content:space-between; align-items:baseline; margin-top:10px; padding-top:8px; border-top:1.5px solid #dee2e6; }
-        .proj-saldo-label { font-size:10px; color:#adb5bd; text-transform:uppercase; letter-spacing:.04em; }
-        .proj-pill { font-size:10px; font-weight:500; padding:2px 7px; border-radius:99px; }
-        .proj-saldo-val { font-size:16px; font-weight:500; }
-
-        /* Loading overlay */
-        #tabLoading { display:none; position:absolute; inset:0; background:rgba(255,255,255,.6); z-index:10; align-items:center; justify-content:center; border-radius:8px; }
-        .tab-content-area { position:relative; }
-
-        /* Info fatura cartão */
-        .fatura-info-bar { background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; padding:10px 16px; margin-bottom:1.5rem; font-size:13px; }
-    
-        /* Override positive/negative para usar vars */
-        .positive { color: var(--green) !important; }
-        .negative { color: var(--red) !important; }
-    </style>
 <script>
-  // Aplica estado da sidebar antes do primeiro paint — evita flash
   (function() {
     if (localStorage.getItem('sm_sidebar') === 'open') {
       document.documentElement.setAttribute('data-sb', 'open');
@@ -128,15 +19,95 @@
   })();
 </script>
 <style>
-  /* Estado inicial da sidebar via atributo — sem flash e sem animação */
   html[data-sb="open"] .sm-sidebar,
   html[data-sb="open"] .sm-content,
   html[data-sb="open"] .sm-sb-toggle,
-  html[data-sb="open"] #sm-sb-icon        { transition: none !important; }
-  html[data-sb="open"] .sm-sidebar        { width: var(--sidebar-w); }
-  html[data-sb="open"] .sm-content        { margin-left: var(--sidebar-w); }
-  html[data-sb="open"] .sm-sb-toggle      { left: calc(var(--sidebar-w) - 13px); }
-  html[data-sb="open"] #sm-sb-icon        { transform: rotate(180deg); }
+  html[data-sb="open"] #sm-sb-icon { transition: none !important; }
+  html[data-sb="open"] .sm-sidebar  { width: var(--sidebar-w); }
+  html[data-sb="open"] .sm-content  { margin-left: var(--sidebar-w); }
+  html[data-sb="open"] .sm-sb-toggle { left: calc(var(--sidebar-w) - 13px); }
+  html[data-sb="open"] #sm-sb-icon  { transform: rotate(180deg); }
+
+  /* ── Navegação de mês ── */
+  .mes-nav {
+    display:flex; align-items:center; gap:10px;
+    background: var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:6px 12px;
+  }
+  .mes-nav-btn {
+    border:none; background:none; color:var(--text-muted);
+    cursor:pointer; padding:2px 6px; border-radius:6px;
+    font-size:18px; line-height:1; transition:all .15s;
+    display:flex; align-items:center;
+  }
+  .mes-nav-btn:hover { background:var(--blue-50); color:var(--blue-800); }
+  .mes-nav-label {
+    font-size:.84rem; font-weight:700; color:var(--text-primary);
+    min-width:100px; text-align:center; letter-spacing:-.2px;
+  }
+  .mes-badge {
+    font-size:.62rem; font-weight:700; padding:2px 7px;
+    border-radius:10px; background:var(--blue-100); color:var(--blue-800);
+  }
+  .mes-badge.futuro { background:#fef3c7; color:#92400e; }
+  .mes-badge.passado { background:#f1f5f9; color:#475569; }
+
+  /* ── Abas de conta ── */
+  .nav-tabs-conta {
+    display:flex; gap:4px; flex-wrap:wrap; margin-bottom:20px;
+    border-bottom:1px solid var(--border); padding-bottom:0;
+  }
+  .nav-tabs-conta .tab-btn {
+    padding:8px 16px; border-radius:8px 8px 0 0; font-size:.82rem; font-weight:500;
+    color:var(--text-secondary); background:transparent;
+    border:1px solid transparent; border-bottom:none; text-decoration:none;
+    transition:all .15s; cursor:pointer; display:flex; align-items:center; gap:6px;
+    font-family:'DM Sans',sans-serif;
+  }
+  .nav-tabs-conta .tab-btn:hover { background:var(--blue-50); color:var(--blue-800); }
+  .nav-tabs-conta .tab-btn.active {
+    background:var(--surface); color:var(--blue-800); font-weight:700;
+    border-color:var(--border); border-bottom-color:var(--surface);
+    margin-bottom:-1px; position:relative; z-index:1;
+  }
+
+  /* ── KPI Cards ── */
+  .kpi-card { position:relative; overflow:hidden; }
+  .kpi-card::before {
+    content:''; position:absolute; top:0; left:0;
+    width:4px; height:100%;
+  }
+  .kpi-card.green::before { background:var(--green); }
+  .kpi-card.amber::before { background:var(--amber); }
+  .kpi-card.blue::before  { background:var(--blue-600); }
+  .kpi-card.teal::before  { background:#0891b2; }
+  .kpi-card.red::before   { background:var(--red); }
+  .kpi-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  .kpi-value { font-size:1.5rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .positive { color:var(--green) !important; }
+  .negative { color:var(--red) !important; }
+  .neutral  { color:var(--text-primary) !important; }
+
+  /* ── Barra de info mês ── */
+  .mes-info-bar {
+    display:flex; gap:16px; flex-wrap:wrap; align-items:center;
+    background:var(--blue-50); border:1px solid var(--blue-100);
+    border-radius:8px; padding:8px 14px; margin-bottom:16px;
+    font-size:.75rem; color:var(--text-secondary);
+  }
+  .mes-info-item { display:flex; align-items:center; gap:5px; }
+  .mes-info-dot  { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+  /* ── Detalhe fatura cartão ── */
+  .fatura-row {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 0; border-bottom:1px solid var(--border); font-size:.82rem;
+  }
+  .fatura-row:last-child { border-bottom:none; }
+  .fatura-progress { height:4px; border-radius:2px; background:var(--border); margin-top:4px; overflow:hidden; }
+  .fatura-progress-bar { height:100%; border-radius:2px; background:var(--blue-600); transition:width .3s; }
+  .fatura-progress-bar.warn { background:var(--amber); }
+  .fatura-progress-bar.danger { background:var(--red); }
 </style>
 </head>
 <body>
@@ -177,14 +148,14 @@
       <a href="{{ url_for('lancamentos') }}" class="sm-nav-item" title="Despesas">
         <i class="ti ti-trending-down sm-nav-icon"></i><span class="sm-nav-label">Despesas</span>
       </a>
-      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Assinaturas">
-        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Assinaturas</span>
+      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Despesas Fixas">
+        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Despesas Fixas</span>
       </a>
       <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
         <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
       </a>
-      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
-        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Receitas Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Receitas Fixas</span>
       </a>
       <div class="sm-nav-divider"></div>
       <div class="sm-sb-section">Cadastros</div>
@@ -231,29 +202,29 @@
 
     <main class="sm-main sm-animate">
 
-      <!-- Abas de cartão -->
-      <nav class="nav-tabs-cartao" id="abaCartoes">
-        <a class="nav-link active" data-cartao="geral" href="#">
-          <i class="ti ti-layout-grid" style="font-size:14px"></i> Geral
-        </a>
-        {% for c in cartoes_credito %}
-        <a class="nav-link" data-cartao="{{ c.id }}" href="#">
-          <i class="ti ti-credit-card" style="font-size:14px"></i> {{ c.nome }}
-          <span class="badge-cartao">crédito</span>
-        </a>
-        {% endfor %}
-      </nav>
-
-      <div id="tabLoading" style="display:none">
-        <div class="d-flex justify-content-center py-4">
-          <div class="spinner-border text-secondary" role="status"><span class="visually-hidden">Carregando...</span></div>
+      <!-- Navegação de mês + abas de conta -->
+      <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+        <div class="nav-tabs-conta" id="tabsContas">
+          <button class="tab-btn active" data-tab="geral" onclick="mudarAba('geral', this)">
+            <i class="ti ti-layout-grid" style="font-size:14px"></i> Geral
+          </button>
+          <!-- Abas de conta preenchidas pelo JS -->
+        </div>
+        <div class="mes-nav">
+          <button class="mes-nav-btn" onclick="navegarMes(-1)" title="Mês anterior">
+            <i class="ti ti-chevron-left"></i>
+          </button>
+          <span class="mes-nav-label" id="mesNavLabel">—</span>
+          <span class="mes-badge" id="mesBadge">atual</span>
+          <button class="mes-nav-btn" onclick="navegarMes(1)" title="Próximo mês">
+            <i class="ti ti-chevron-right"></i>
+          </button>
         </div>
       </div>
 
-      <!-- Info fatura -->
-      <div id="faturaInfoBar" class="fatura-info-bar d-none">
-        <i class="ti ti-info-circle me-2"></i>
-        <span id="faturaInfoTexto"></span>
+      <!-- Barra de contexto do mês -->
+      <div class="mes-info-bar" id="mesInfoBar" style="display:none">
+        <span id="mesInfoTexto"></span>
       </div>
 
       <!-- KPI Cards -->
@@ -263,8 +234,8 @@
             <div class="sm-card-body d-flex justify-content-between align-items-center">
               <div>
                 <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard1">Saldo Total</div>
-                <div class="kpi-value positive" id="valorCard1">R$ {{ "%.2f"|format(saldo_total) }}</div>
-                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard1">Saldo disponível em todas as contas</div>
+                <div class="kpi-value positive" id="valorCard1">—</div>
+                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard1">Saldo em todas as contas agora</div>
               </div>
               <div class="kpi-icon" style="background:var(--green-bg);color:var(--green)">
                 <i class="ti ti-wallet" id="iconCard1"></i>
@@ -273,162 +244,126 @@
           </div>
         </div>
         <div class="col-md-3">
+          <div class="sm-card kpi-card blue">
+            <div class="sm-card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard2">Disponível no Mês</div>
+                <div class="kpi-value" id="valorCard2">—</div>
+                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard2">Saldo + Rec. pendentes − Gastos previstos</div>
+              </div>
+              <div class="kpi-icon" style="background:var(--blue-100);color:var(--blue-700)">
+                <i class="ti ti-credit-card" id="iconCard2"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
           <div class="sm-card kpi-card amber">
             <div class="sm-card-body d-flex justify-content-between align-items-center">
               <div>
-                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard2">Fatura Atual</div>
-                <div class="kpi-value negative" id="valorCard2">R$ {{ "%.2f"|format(gasto_credito) }}</div>
-                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard2">Total na fatura aberta dos cartões</div>
+                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard3">Receitas do Mês</div>
+                <div class="kpi-value positive" id="valorCard3">—</div>
+                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard3">Realizadas + pendentes</div>
               </div>
-              <div class="kpi-icon" style="background:#fef3c7;color:var(--amber)">
-                <i class="ti ti-credit-card"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="sm-card kpi-card blue" id="card3">
-            <div class="sm-card-body d-flex justify-content-between align-items-center">
-              <div>
-                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard3">Disponível no Mês</div>
-                <div class="kpi-value {% if disponivel_mes >= 0 %}positive{% else %}negative{% endif %}" id="valorCard3">R$ {{ "%.2f"|format(disponivel_mes) }}</div>
-                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard3">Saldo + Receitas − Fatura atual</div>
-              </div>
-              <div class="kpi-icon" style="background:var(--blue-100);color:var(--blue-700)">
-                <i class="ti ti-chart-arrows-vertical"></i>
+              <div class="kpi-icon" style="background:#dcfce7;color:var(--green)">
+                <i class="ti ti-chart-arrows-vertical" id="iconCard3"></i>
               </div>
             </div>
           </div>
         </div>
         <div class="col-md-3">
-          <div class="sm-card kpi-card teal">
+          <div class="sm-card kpi-card red">
             <div class="sm-card-body d-flex justify-content-between align-items-center">
               <div>
-                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard4">Receitas do Mês</div>
-                <div class="kpi-value positive" id="valorCard4">R$ {{ "%.2f"|format(receitas_mes) }}</div>
-                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard4">Total recebido este mês</div>
+                <div class="sm-text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px" id="labelCard4">Gastos do Mês</div>
+                <div class="kpi-value negative" id="valorCard4">—</div>
+                <div class="sm-text-muted mt-1" style="font-size:.72rem" id="subCard4">Débito + Faturas crédito</div>
               </div>
-              <div class="kpi-icon" style="background:#e0f2fe;color:#0891b2">
-                <i class="ti ti-arrow-down-circle"></i>
+              <div class="kpi-icon" style="background:var(--red-bg);color:var(--red)">
+                <i class="ti ti-arrow-down-circle" id="iconCard4"></i>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Projeção + Categorias -->
+      <!-- Linha 2: Conteúdo da aba + Categorias -->
       <div class="row g-3 mb-4">
-        <div class="col-md-8" id="colProjecao">
-          <div class="sm-card h-100">
-            <div class="sm-card-header">
-              <div class="sm-card-title" id="tituloProjecao">Projeção dos Próximos Meses</div>
-              <a href="{{ url_for('projecoes') }}" class="sm-btn sm-btn-outline sm-btn-sm" id="linkProjecao">Ver mais</a>
-            </div>
-            <div class="sm-card-body">
-              <div id="projecaoGeral">
-                {% if proximas_faturas %}
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                  {% for p in proximas_faturas %}
-                  {% if p.saldo >= 500 %}
-                    {% set bg_h="#E1F5EE" %} {% set bd_h="#9FE1CB" %} {% set tx_h="#085041" %} {% set pill_bg="#9FE1CB" %} {% set cor_saldo="#1D9E75" %}
-                  {% elif p.saldo >= 0 %}
-                    {% set bg_h="#FAEEDA" %} {% set bd_h="#FAC775" %} {% set tx_h="#633806" %} {% set pill_bg="#FAC775" %} {% set cor_saldo="#BA7517" %}
-                  {% else %}
-                    {% set bg_h="#FCEBEB" %} {% set bd_h="#F7C1C1" %} {% set tx_h="#501313" %} {% set pill_bg="#F7C1C1" %} {% set cor_saldo="#A32D2D" %}
-                  {% endif %}
-                  <div class="proj-card">
-                    <div class="proj-header" style="background:{{ bg_h }};border-bottom:1px solid {{ bd_h }};">
-                      <span style="font-weight:500;font-size:13px;color:{{ tx_h }};">{{ p.mes_ano }}</span>
-                      <span class="proj-pill" style="background:{{ pill_bg }};color:{{ tx_h }};">{% if p.saldo >= 0 %}+{% endif %}R$ {{ "%.0f"|format(p.saldo) }}</span>
-                    </div>
-                    <div class="proj-body">
-                      <div class="proj-row">
-                        <span class="proj-label"><span class="proj-dot" style="background:#1D9E75;"></span>Rec. fixas</span>
-                        <span style="font-weight:500;color:#1D9E75;">R$ {{ "%.2f"|format(p.receitas) }}</span>
-                      </div>
-                      <div class="proj-row">
-                        <span class="proj-label"><span class="proj-dot" style="background:#E24B4A;"></span>Desp. fixas</span>
-                        <span style="font-weight:500;color:#dc3545;">R$ {{ "%.2f"|format(p.despesas_fixas) }}</span>
-                      </div>
-                      <div class="proj-row">
-                        <span class="proj-label"><span class="proj-dot" style="background:#BA7517;"></span>Parcelas</span>
-                        <span style="font-weight:500;color:#BA7517;">R$ {{ "%.2f"|format(p.despesas_parceladas) }}</span>
-                      </div>
-                      <div class="proj-saldo">
-                        <span class="proj-saldo-label">Saldo proj.</span>
-                        <span class="proj-saldo-val" style="color:{{ cor_saldo }};">{% if p.saldo < 0 %}−{% endif %}R$ {{ "%.2f"|format(p.saldo|abs) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {% endfor %}
-                </div>
-                {% else %}
-                <p class="sm-text-muted text-center mb-0" style="font-size:.82rem">Adicione receitas ou despesas fixas para ver projeções.</p>
-                {% endif %}
+
+        <!-- Coluna esquerda: conteúdo dinâmico por aba -->
+        <div class="col-md-8" id="colConteudoAba">
+
+          <!-- Aba Geral: faturas de cartão -->
+          <div id="painelGeral">
+            <div class="sm-card h-100">
+              <div class="sm-card-header">
+                <div class="sm-card-title">Faturas de Cartão</div>
+                <a href="{{ url_for('lancamentosCartao') }}" class="sm-btn sm-btn-outline sm-btn-sm">Gerenciar</a>
               </div>
-              <div id="historicoCartao" style="display:none;">
-                <canvas id="graficoHistoricoCartao" height="140"></canvas>
+              <div class="sm-card-body" id="painelFaturas">
+                <p class="sm-text-muted text-center mb-0" style="font-size:.82rem">Nenhum cartão cadastrado</p>
               </div>
             </div>
           </div>
+
+          <!-- Aba Conta: detalhe da conta -->
+          <div id="painelConta" style="display:none">
+            <div class="sm-card h-100">
+              <div class="sm-card-header">
+                <div>
+                  <div class="sm-card-title" id="contaNome">—</div>
+                  <div class="sm-card-subtitle" id="contaSaldo">—</div>
+                </div>
+              </div>
+              <div class="sm-card-body">
+                <div class="row g-3 mb-3">
+                  <div class="col-6">
+                    <div class="sm-text-muted" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Entradas no mês</div>
+                    <div class="sm-fw-bold sm-text-success" style="font-size:1.1rem" id="contaEntradas">—</div>
+                  </div>
+                  <div class="col-6">
+                    <div class="sm-text-muted" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Saídas débito</div>
+                    <div class="sm-fw-bold sm-text-danger" style="font-size:1.1rem" id="contaSaidas">—</div>
+                  </div>
+                </div>
+                <!-- Cartões vinculados -->
+                <div id="contaCartoes"></div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
+        <!-- Coluna direita: Top categorias -->
         <div class="col-md-4">
           <div class="sm-card h-100">
             <div class="sm-card-header">
               <div class="sm-card-title">Top Gastos por Categoria</div>
-              <i class="ti ti-chart-pie sm-text-muted"></i>
             </div>
             <div class="sm-card-body" id="listaCategorias">
-              {% if gastos_por_categoria %}
-              {% for cat in gastos_por_categoria %}
-              <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                <span style="font-size:.82rem;font-weight:600">{{ cat.nome }}</span>
-                <span class="sm-badge sm-badge-amber">R$ {{ "%.2f"|format(cat.total) }}</span>
-              </div>
-              {% endfor %}
-              {% else %}
-              <p class="sm-text-muted text-center mb-0" style="font-size:.82rem">Nenhum gasto este mês</p>
-              {% endif %}
+              <p class="sm-text-muted text-center mb-0" style="font-size:.82rem">Nenhum gasto neste mês</p>
             </div>
           </div>
         </div>
+
       </div>
 
-      <!-- Últimas Transações -->
+      <!-- Transações do mês -->
       <div class="sm-card">
         <div class="sm-card-header">
-          <div class="sm-card-title" id="tituloTransacoes">Últimas Transações</div>
-          <a href="{{ url_for('lancamentos') }}" class="sm-btn sm-btn-outline sm-btn-sm">Ver todas</a>
+          <div class="sm-card-title" id="tituloTransacoes">Transações do Mês</div>
+          <a href="{{ url_for('lancamentos') }}" class="sm-btn sm-btn-outline sm-btn-sm">Ver despesas</a>
         </div>
         <div class="sm-table-wrap">
-          <table class="sm-table" id="tabelaTransacoes">
+          <table class="sm-table">
             <thead>
               <tr>
-                <th>Data</th><th>Descrição</th><th>Categoria</th><th>Cartão / Conta</th><th>Tipo</th><th class="text-end">Valor</th>
+                <th>Data</th><th>Descrição</th><th>Categoria</th>
+                <th>Destino</th><th>Tipo</th><th class="text-end">Valor</th>
               </tr>
             </thead>
             <tbody id="corpoTransacoes">
-              {% for t in transacoes %}
-              <tr>
-                <td class="sm-text-muted" style="font-size:.78rem">{{ t.data_lancamento }}</td>
-                <td>{{ t.descricao }}</td>
-                <td>{{ t.categoria or '—' }}</td>
-                <td>{{ t.cartao_nome or t.conta_nome or '—' }}</td>
-                <td>
-                  {% if t.tipo == 'receita' %}
-                  <span class="sm-badge sm-badge-success">Receita</span>
-                  {% else %}
-                  <span class="sm-badge sm-badge-danger">Despesa</span>
-                  {% endif %}
-                </td>
-                <td class="text-end sm-fw-bold {% if t.tipo == 'receita' %}positive{% else %}negative{% endif %}">
-                  R$ {{ "%.2f"|format(t.valor) }}
-                </td>
-              </tr>
-              {% else %}
-              <tr><td colspan="6" class="text-center sm-text-muted py-4">Nenhuma transação encontrada</td></tr>
-              {% endfor %}
+              <tr><td colspan="6" class="text-center sm-text-muted py-4">Carregando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -440,6 +375,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user-menu.js') }}"></script>
 
 <script>
 const SB_KEY = 'sm_sidebar';
@@ -465,235 +401,267 @@ function smToggleSidebar() {
     toggleIcon.innerHTML = isOpen
         ? '<polyline points="15 18 9 12 15 6"></polyline>'
         : '<polyline points="9 18 15 12 9 6"></polyline>';
-    // Remove atributo após JS assumir controle
     document.documentElement.removeAttribute('data-sb');
 })();
+
+document.addEventListener('DOMContentLoaded', () => {
+    SMUserMenu.init('{{ session.user_nome }}', '{{ session.user_role }}');
+});
 </script>
 
 <script>
 // ════════════════════════════════════════════════════════════════
-// Estado global do dashboard
+// Estado do dashboard
 // ════════════════════════════════════════════════════════════════
-const ESTADO_GERAL = {
-    saldoTotal:     {{ saldo_total }},
-    faturaAtual:    {{ gasto_credito }},
-    disponivelMes:  {{ disponivel_mes }},
-    receitasMes:    {{ receitas_mes }},
-};
+const hoje = new Date();
+let anoAtual = hoje.getFullYear();
+let mesAtual = hoje.getMonth() + 1;
+let abaAtiva = 'geral';
+let dadosMes  = null;
 
-let graficoCartao = null;  // instância Chart.js do histórico do cartão
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-// ── Formata moeda ────────────────────────────────────────────────
 function fmt(v) {
-    return 'R$ ' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    return 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR',
+        {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
-// ════════════════════════════════════════════════════════════════
-// RENDERIZA VISÃO GERAL
-// ════════════════════════════════════════════════════════════════
-function renderizarGeral() {
-    // Cards
+// ── Navegar mês ──────────────────────────────────────────────────
+function navegarMes(delta) {
+    mesAtual += delta;
+    if (mesAtual > 12) { mesAtual = 1; anoAtual++; }
+    if (mesAtual < 1)  { mesAtual = 12; anoAtual--; }
+    carregarMes();
+}
+
+// ── Carregar dados da API ─────────────────────────────────────────
+function carregarMes() {
+    const label = document.getElementById('mesNavLabel');
+    const badge = document.getElementById('mesBadge');
+    label.textContent = MESES_PT[mesAtual-1] + ' ' + anoAtual;
+
+    const isAtual  = anoAtual === hoje.getFullYear() && mesAtual === hoje.getMonth()+1;
+    const isFuturo = new Date(anoAtual, mesAtual-1) > new Date(hoje.getFullYear(), hoje.getMonth());
+
+    badge.textContent = isAtual ? 'atual' : isFuturo ? 'projeção' : 'passado';
+    badge.className = 'mes-badge' + (isFuturo ? ' futuro' : isAtual ? '' : ' passado');
+
+    // Loading
+    document.getElementById('corpoTransacoes').innerHTML =
+        '<tr><td colspan="6" class="text-center sm-text-muted py-4">Carregando...</td></tr>';
+
+    fetch(`/api/dashboard_mes?ano=${anoAtual}&mes=${mesAtual}`)
+        .then(r => r.json())
+        .then(d => {
+            dadosMes = d;
+            renderizarDashboard(d);
+            atualizarAbas(d.abas_contas);
+        })
+        .catch(() => WM.erro('Erro ao carregar dados do mês.'));
+}
+
+// ── Renderizar cards e conteúdo ──────────────────────────────────
+function renderizarDashboard(d) {
+    const isFuturo = d.is_futuro;
+    const isAtual  = d.is_atual;
+
+    // Card 1: Saldo total (sempre atual)
     document.getElementById('labelCard1').textContent = 'Saldo Total';
-    document.getElementById('valorCard1').textContent = fmt(ESTADO_GERAL.saldoTotal);
-    document.getElementById('subCard1').textContent   = 'Saldo disponível em todas as contas';
+    document.getElementById('valorCard1').textContent = fmt(d.saldo_total);
+    document.getElementById('valorCard1').className   = 'kpi-value ' + (d.saldo_total >= 0 ? 'positive' : 'negative');
+    document.getElementById('subCard1').textContent   = 'Saldo em todas as contas agora';
 
-    document.getElementById('labelCard2').textContent = 'Fatura Atual (todos os cartões)';
-    document.getElementById('valorCard2').textContent = fmt(ESTADO_GERAL.faturaAtual);
-    document.getElementById('subCard2').textContent   = 'Total na fatura aberta dos cartões';
+    // Card 2: Disponível no mês
+    document.getElementById('labelCard2').textContent = 'Disponível no Mês';
+    document.getElementById('valorCard2').textContent = fmt(d.disponivel);
+    document.getElementById('valorCard2').className   = 'kpi-value ' + (d.disponivel >= 0 ? 'positive' : 'negative');
+    document.getElementById('subCard2').textContent   = 'Saldo + Receitas pendentes − Gastos previstos';
 
-    document.getElementById('labelCard3').textContent = 'Disponível no Mês';
-    document.getElementById('valorCard3').textContent = fmt(ESTADO_GERAL.disponivelMes);
-    document.getElementById('valorCard3').className   = ESTADO_GERAL.disponivelMes >= 0 ? 'positive' : 'negative';
-    document.getElementById('subCard3').textContent   = 'Saldo + Receitas − Fatura atual';
+    // Card 3: Receitas do mês
+    const totalReceitas = (d.receitas_realizadas || 0) + (d.receitas_pendentes || 0);
+    document.getElementById('labelCard3').textContent = isFuturo ? 'Receitas Previstas' : 'Receitas do Mês';
+    document.getElementById('valorCard3').textContent = fmt(totalReceitas);
+    document.getElementById('valorCard3').className   = 'kpi-value positive';
+    document.getElementById('subCard3').textContent   = isFuturo
+        ? 'Receitas fixas projetadas'
+        : (d.receitas_pendentes > 0 ? `R$ ${fmt(d.receitas_realizadas)} recebido + R$ ${fmt(d.receitas_pendentes)} pendente` : 'Total recebido no mês');
 
-    document.getElementById('labelCard4').textContent = 'Receitas do Mês';
-    document.getElementById('valorCard4').textContent = fmt(ESTADO_GERAL.receitasMes);
-    document.getElementById('subCard4').textContent   = 'Total recebido este mês';
+    // Card 4: Gastos do mês
+    const totalGastos = (d.debito_realizado || 0) + (d.fatura_credito || 0) + (d.debito_fixo_pendente || 0);
+    document.getElementById('labelCard4').textContent = isFuturo ? 'Gastos Previstos' : 'Gastos do Mês';
+    document.getElementById('valorCard4').textContent = fmt(totalGastos);
+    document.getElementById('valorCard4').className   = 'kpi-value negative';
+    document.getElementById('subCard4').textContent   = isFuturo
+        ? 'Fixas + parcelas projetadas'
+        : 'Débito + faturas crédito';
 
-    // Projeção vs Histórico
-    document.getElementById('projecaoGeral').style.display   = '';
-    document.getElementById('historicoCartao').style.display  = 'none';
-    document.getElementById('tituloProjecao').innerHTML = '<i class="bi bi-calendar3 me-2"></i>Projeção dos Próximos Meses';
-    document.getElementById('linkProjecao').style.display = '';
-
-    // Fatura info bar
-    document.getElementById('faturaInfoBar').classList.add('d-none');
-
-    // Título transações
-    document.getElementById('tituloTransacoes').textContent = 'Últimas Transações';
-
-    // Destrói gráfico se existia
-    if (graficoCartao) { graficoCartao.destroy(); graficoCartao = null; }
-}
-
-// ════════════════════════════════════════════════════════════════
-// RENDERIZA VISÃO POR CARTÃO
-// ════════════════════════════════════════════════════════════════
-function renderizarCartao(dados) {
-    // Cards
-    document.getElementById('labelCard1').textContent = 'Limite do Cartão';
-    document.getElementById('valorCard1').textContent = fmt(dados.limite || 0);
-    document.getElementById('subCard1').textContent   = dados.nome_cartao;
-
-    document.getElementById('labelCard2').textContent = 'Fatura Atual';
-    document.getElementById('valorCard2').textContent = fmt(dados.fatura_atual);
-    document.getElementById('subCard2').textContent   = dados.periodo_inicio
-        ? 'Período: ' + dados.periodo_inicio + ' a ' + dados.periodo_fim
-        : 'Fatura aberta';
-
-    const disponivel = (dados.limite || 0) - dados.fatura_atual;
-    document.getElementById('labelCard3').textContent = 'Limite Disponível';
-    document.getElementById('valorCard3').textContent = fmt(disponivel);
-    document.getElementById('valorCard3').className   = disponivel >= 0 ? 'positive' : 'negative';
-    document.getElementById('subCard3').textContent   = 'Limite − Fatura atual';
-
-    // Card4: gasto este mês neste cartão (soma das categorias)
-    const totalMes = dados.gastos_categoria.reduce((s, c) => s + c.total, 0);
-    document.getElementById('labelCard4').textContent = 'Gasto no Mês';
-    document.getElementById('valorCard4').textContent = fmt(totalMes);
-    document.getElementById('subCard4').textContent   = 'Total neste cartão este mês';
-
-    // Info bar de período/vencimento
-    if (dados.vencimento) {
-        const bar = document.getElementById('faturaInfoBar');
-        bar.classList.remove('d-none');
-        document.getElementById('faturaInfoTexto').innerHTML =
-            '<strong>Fatura atual:</strong> ' + dados.periodo_inicio + ' a ' + dados.periodo_fim +
-            ' &nbsp;|&nbsp; <strong>Vencimento:</strong> ' + dados.vencimento;
+    // Barra info mês
+    const bar = document.getElementById('mesInfoBar');
+    const txt = document.getElementById('mesInfoTexto');
+    if (isFuturo) {
+        bar.style.display = '';
+        txt.innerHTML = '<i class="ti ti-info-circle me-1"></i> Mês futuro — valores baseados em receitas e despesas fixas cadastradas.';
+    } else if (!isAtual) {
+        bar.style.display = '';
+        txt.innerHTML = '<i class="ti ti-history me-1"></i> Mês passado — dados realizados conforme lançamentos.';
+    } else {
+        bar.style.display = 'none';
     }
 
-    // Histórico do cartão (gráfico de barras)
-    document.getElementById('projecaoGeral').style.display  = 'none';
-    document.getElementById('historicoCartao').style.display = '';
-    document.getElementById('tituloProjecao').innerHTML = '<i class="bi bi-bar-chart me-2"></i>Gastos por Mês — ' + dados.nome_cartao;
-    document.getElementById('linkProjecao').style.display = 'none';
-
-    if (graficoCartao) { graficoCartao.destroy(); }
-    const ctx = document.getElementById('graficoHistoricoCartao').getContext('2d');
-    graficoCartao = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: dados.historico.map(h => h.label),
-            datasets: [{
-                label: 'Gastos (R$)',
-                data: dados.historico.map(h => h.despesas),
-                backgroundColor: dados.historico.map((h, i) =>
-                    i === dados.historico.length - 1 ? 'rgba(220,53,69,.85)' : 'rgba(220,53,69,.35)'
-                ),
-                borderRadius: 4,
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
-        }
-    });
+    // Faturas de cartão
+    renderizarFaturas(d.detalhes_faturas || []);
 
     // Categorias
-    const lista = document.getElementById('listaCategorias');
-    if (dados.gastos_categoria.length) {
-        lista.innerHTML = dados.gastos_categoria.map(c =>
-            '<div class="d-flex justify-content-between align-items-center py-2 border-bottom">' +
-            '<small class="fw-bold">' + c.nome + '</small>' +
-            '<span class="badge bg-warning text-dark">' + fmt(c.total) + '</span></div>'
-        ).join('');
-    } else {
-        lista.innerHTML = '<p class="text-muted text-center mb-0">Nenhum gasto este mês</p>';
-    }
+    renderizarCategorias(d.categorias || []);
 
     // Transações
-    document.getElementById('tituloTransacoes').textContent = 'Últimas Transações — ' + dados.nome_cartao;
+    renderizarTransacoes(d.transacoes || [], d.is_futuro);
+}
+
+function renderizarFaturas(faturas) {
+    const el = document.getElementById('painelFaturas');
+    if (!faturas.length) {
+        el.innerHTML = '<p class="sm-text-muted text-center mb-0" style="font-size:.82rem">Nenhum cartão cadastrado</p>';
+        return;
+    }
+    el.innerHTML = faturas.map(f => {
+        const pct = f.limite > 0 ? Math.min(100, (f.gasto / f.limite) * 100) : 0;
+        const barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+        return `
+        <div class="fatura-row">
+          <div>
+            <div class="sm-fw-bold" style="font-size:.84rem">${f.nome}</div>
+            <div class="sm-text-muted" style="font-size:.7rem">Fecha: ${f.fechamento}</div>
+            <div class="fatura-progress" style="width:120px">
+              <div class="fatura-progress-bar ${barClass}" style="width:${pct}%"></div>
+            </div>
+          </div>
+          <div class="text-end">
+            <div class="sm-fw-bold sm-text-danger">${fmt(f.gasto)}</div>
+            <div class="sm-text-muted" style="font-size:.7rem">de ${fmt(f.limite)}</div>
+          </div>
+        </div>`;
+    }).join('');
+}
+
+function renderizarCategorias(cats) {
+    const el = document.getElementById('listaCategorias');
+    if (!cats.length) {
+        el.innerHTML = '<p class="sm-text-muted text-center mb-0" style="font-size:.82rem">Nenhum gasto neste mês</p>';
+        return;
+    }
+    el.innerHTML = cats.map(c => `
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+          <span style="font-size:.82rem;font-weight:600">${c.nome}</span>
+          <span class="sm-badge sm-badge-amber">${fmt(c.total)}</span>
+        </div>`).join('');
+}
+
+function renderizarTransacoes(transacoes, isFuturo) {
     const tbody = document.getElementById('corpoTransacoes');
-    if (dados.transacoes.length) {
-        tbody.innerHTML = dados.transacoes.map(t => {
-            const v = t.pagamento === 'parcelado' && t.parcelas
-                ? fmt(t.valor_exibido) + ' <small class="text-muted">/' + t.parcelas + 'x</small>'
-                : fmt(t.valor_exibido);
-            return '<tr>' +
-                '<td class="text-muted small">' + (t.data_lancamento || '') + '</td>' +
-                '<td>' + t.descricao + '</td>' +
-                '<td>' + (t.categoria || '-') + '</td>' +
-                '<td>' + (t.cartao_nome || '-') + '</td>' +
-                '<td><span class="badge bg-danger">Despesa</span></td>' +
-                '<td class="text-end negative">' + v + '</td>' +
-                '</tr>';
-        }).join('');
+    if (isFuturo) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center sm-text-muted py-4">Mês futuro — sem transações realizadas</td></tr>';
+        return;
+    }
+    if (!transacoes.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center sm-text-muted py-4">Nenhuma transação neste mês</td></tr>';
+        return;
+    }
+    tbody.innerHTML = transacoes.map(t => `
+        <tr>
+          <td class="sm-text-muted" style="font-size:.78rem">${t.data_lancamento}</td>
+          <td>${t.descricao || '—'}</td>
+          <td>${t.categoria && !t.categoria.startsWith('_') ? t.categoria : '—'}</td>
+          <td>${t.cartao_nome || t.conta_nome || '—'}</td>
+          <td>${t.tipo === 'receita'
+            ? '<span class="sm-badge sm-badge-success">Receita</span>'
+            : '<span class="sm-badge sm-badge-danger">Despesa</span>'}</td>
+          <td class="text-end sm-fw-bold ${t.tipo === 'receita' ? 'positive' : 'negative'}">
+            ${fmt(t.valor)}
+          </td>
+        </tr>`).join('');
+}
+
+// ── Abas de conta ────────────────────────────────────────────────
+function atualizarAbas(contas) {
+    const tabs = document.getElementById('tabsContas');
+    // Remover abas de conta anteriores (manter só Geral)
+    tabs.querySelectorAll('[data-conta]').forEach(el => el.remove());
+
+    contas.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = 'tab-btn';
+        btn.dataset.conta = c.id;
+        btn.innerHTML = `<i class="ti ti-building-bank" style="font-size:13px"></i> ${c.nome}`;
+        btn.onclick = function() { mudarAba('conta', this, c); };
+        tabs.appendChild(btn);
+    });
+}
+
+function mudarAba(tipo, el, dadosConta) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    abaAtiva = tipo;
+
+    const painelGeral = document.getElementById('painelGeral');
+    const painelConta = document.getElementById('painelConta');
+
+    if (tipo === 'geral') {
+        painelGeral.style.display = '';
+        painelConta.style.display = 'none';
     } else {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhuma transação neste cartão</td></tr>';
+        painelGeral.style.display = 'none';
+        painelConta.style.display = '';
+        renderizarConta(dadosConta);
     }
 }
 
-// ════════════════════════════════════════════════════════════════
-// TROCA DE ABA
-// ════════════════════════════════════════════════════════════════
-document.getElementById('abaCartoes').addEventListener('click', function(e) {
-    const link = e.target.closest('a[data-cartao]');
-    if (!link) return;
-    e.preventDefault();
+function renderizarConta(c) {
+    document.getElementById('contaNome').textContent   = c.nome;
+    document.getElementById('contaSaldo').textContent  = `Saldo atual: ${fmt(c.saldo)}`;
+    document.getElementById('contaEntradas').textContent = fmt(c.entradas);
+    document.getElementById('contaSaidas').textContent   = fmt(c.saidas);
 
-    // Atualiza visual das abas
-    this.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    link.classList.add('active');
-
-    const cartaoId = link.dataset.cartao;
-
-    if (cartaoId === 'geral') {
-        renderizarGeral();
-        // Restaura tabela de transações geral
-        fetch('/api/dashboard_data')
-            .then(r => r.json())
-            .then(d => {
-                ESTADO_GERAL.saldoTotal    = d.saldo_total;
-                ESTADO_GERAL.faturaAtual   = d.gasto_credito;
-                ESTADO_GERAL.disponivelMes = d.disponivel_mes;
-                ESTADO_GERAL.receitasMes   = d.receitas_mes;
-                renderizarGeral();
-            });
+    const el = document.getElementById('contaCartoes');
+    if (!c.cartoes.length) {
+        el.innerHTML = '<p class="sm-text-muted" style="font-size:.78rem;margin-top:12px">Nenhum cartão vinculado a esta conta.</p>';
         return;
     }
 
-    // Carrega dados do cartão
-    const loading = document.getElementById('tabLoading');
-    loading.style.display = 'flex';
-
-    fetch('/api/dashboard_cartao/' + cartaoId)
-        .then(r => r.json())
-        .then(d => {
-            loading.style.display = 'none';
-            if (d.success) {
-                renderizarCartao(d);
-            } else {
-                WM.erro('Erro ao carregar dados do cartão.');
+    // Buscar faturas dos cartões dessa conta nos dados já carregados
+    el.innerHTML = '<div class="sm-section-header"><div class="sm-section-title">Cartões vinculados</div><div class="sm-section-line"></div></div>';
+    c.cartoes.forEach(cartao => {
+        const fatura = dadosMes?.detalhes_faturas?.find(f => f.nome === cartao.nome);
+        const div = document.createElement('div');
+        div.className = 'fatura-row';
+        const pct = fatura && cartao.limite > 0 ? Math.min(100, (fatura.gasto / cartao.limite) * 100) : 0;
+        const barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+        div.innerHTML = `
+          <div>
+            <div class="sm-fw-bold" style="font-size:.84rem">${cartao.nome}
+              <span class="sm-badge sm-badge-neutral" style="margin-left:4px">${cartao.tipo}</span>
+            </div>
+            ${fatura ? `<div class="sm-text-muted" style="font-size:.7rem">Fecha: ${fatura.fechamento}</div>
+            <div class="fatura-progress" style="width:140px">
+              <div class="fatura-progress-bar ${barClass}" style="width:${pct}%"></div>
+            </div>` : '<div class="sm-text-muted" style="font-size:.7rem">Sem dados de fatura</div>'}
+          </div>
+          <div class="text-end">
+            ${fatura
+              ? `<div class="sm-fw-bold sm-text-danger">${fmt(fatura.gasto)}</div>
+                 <div class="sm-text-muted" style="font-size:.7rem">de ${fmt(cartao.limite)}</div>`
+              : `<div class="sm-text-muted" style="font-size:.78rem">Débito / sem limite</div>`
             }
-        })
-        .catch(() => {
-            loading.style.display = 'none';
-            WM.erro('Erro de conexão.');
-        });
-});
-
-// ════════════════════════════════════════════════════════════════
-// ATUALIZAÇÃO AUTOMÁTICA (aba Geral)
-// ════════════════════════════════════════════════════════════════
-function atualizarDashboardGeral() {
-    const abaAtiva = document.querySelector('#abaCartoes .nav-link.active');
-    if (!abaAtiva || abaAtiva.dataset.cartao !== 'geral') return;
-    fetch('/api/dashboard_data')
-        .then(r => r.json())
-        .then(d => {
-            ESTADO_GERAL.saldoTotal    = d.saldo_total;
-            ESTADO_GERAL.faturaAtual   = d.gasto_credito;
-            ESTADO_GERAL.disponivelMes = d.disponivel_mes;
-            ESTADO_GERAL.receitasMes   = d.receitas_mes;
-            renderizarGeral();
-        })
-        .catch(err => console.error('Erro dashboard:', err));
+          </div>`;
+        el.appendChild(div);
+    });
 }
 
-setInterval(atualizarDashboardGeral, 30000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) atualizarDashboardGeral(); });
+// ── Inicializar ───────────────────────────────────────────────────
+carregarMes();
 </script>
+
 <script src="{{ url_for('static', filename='js/user-menu.js') }}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', () => {

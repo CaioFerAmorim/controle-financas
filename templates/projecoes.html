@@ -69,14 +69,14 @@
       <a href="{{ url_for('lancamentos') }}" class="sm-nav-item" title="Despesas">
         <i class="ti ti-trending-down sm-nav-icon"></i><span class="sm-nav-label">Despesas</span>
       </a>
-      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Assinaturas">
-        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Assinaturas</span>
+      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Despesas Fixas">
+        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Despesas Fixas</span>
       </a>
       <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
         <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
       </a>
-      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
-        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Receitas Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Receitas Fixas</span>
       </a>
       <div class="sm-nav-divider"></div>
       <div class="sm-sb-section">Cadastros</div>
@@ -112,6 +112,12 @@
         </div>
       </div>
       <div class="sm-topbar-right">
+        <a href="{{ url_for('lancamentos') }}" class="sm-btn sm-btn-primary sm-btn-sm">
+          <i class="ti ti-plus"></i> Nova Despesa
+        </a>
+        <a href="{{ url_for('lancamentosReceita') }}" class="sm-btn sm-btn-success sm-btn-sm">
+          <i class="ti ti-plus"></i> Nova Receita
+        </a>
         <div class="sm-topbar-user sm-user-trigger" title="Menu do usuário">
           <div class="sm-topbar-avatar">{{ session.user_nome[0]|upper }}</div>
           {{ session.user_nome }}

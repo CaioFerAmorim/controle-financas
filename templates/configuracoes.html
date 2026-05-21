@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações — Smart Money</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
+    <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
+<script>
+  (function() {
+    if (localStorage.getItem('sm_sidebar') === 'open') {
+      document.documentElement.setAttribute('data-sb', 'open');
+    }
+  })();
+</script>
+<style>
+  html[data-sb="open"] .sm-sidebar,
+  html[data-sb="open"] .sm-content,
+  html[data-sb="open"] .sm-sb-toggle,
+  html[data-sb="open"] #sm-sb-icon { transition: none !important; }
+  html[data-sb="open"] .sm-sidebar  { width: var(--sidebar-w); }
+  html[data-sb="open"] .sm-content  { margin-left: var(--sidebar-w); }
+  html[data-sb="open"] .sm-sb-toggle { left: calc(var(--sidebar-w) - 13px); }
+  html[data-sb="open"] #sm-sb-icon  { transform: rotate(180deg); }
+
+  .config-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  .config-section-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .config-section-icon {
+    width: 34px; height: 34px;
+    background: var(--blue-50); color: var(--blue-700);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+  }
+  .config-section-title {
+    font-size: .88rem; font-weight: 700;
+    color: var(--text-primary); letter-spacing: -.2px;
+  }
+  .config-section-sub {
+    font-size: .72rem; color: var(--text-muted); margin-top: 1px;
+  }
+  .config-section-body { padding: 20px; }
+
+  .config-field { margin-bottom: 18px; }
+  .config-field:last-child { margin-bottom: 0; }
+
+  .strength-bar { height: 3px; border-radius: 2px; background: var(--border); margin-top: 6px; }
+  .strength-bar div { height: 100%; border-radius: 2px; transition: all .3s; width: 0%; }
+
+  .avatar-circle {
+    width: 64px; height: 64px;
+    background: var(--blue-800); color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; font-weight: 700;
+    flex-shrink: 0;
+    font-family: 'DM Sans', sans-serif;
+  }
+</style>
+</head>
+<body>
+<div class="sm-shell">
+
+  <aside class="sm-sidebar mini" id="sm-sidebar">
+    <button class="sm-sb-toggle mini" id="sm-sb-toggle" onclick="smToggleSidebar()" title="Expandir menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="sm-sb-icon">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+    <a class="sm-sb-logo" href="{{ url_for('index') }}">
+      <div class="sm-sb-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+      </div>
+      <div class="sm-sb-logo-text">
+        <div class="sm-sb-brand">Smart Money</div>
+        <div class="sm-sb-sub">Controle Financeiro</div>
+      </div>
+    </a>
+    <nav class="sm-sb-nav">
+      <div class="sm-sb-section">Principal</div>
+      <a href="{{ url_for('index') }}" class="sm-nav-item" title="Início">
+        <i class="ti ti-home sm-nav-icon"></i><span class="sm-nav-label">Início</span>
+      </a>
+      <a href="{{ url_for('projecoes') }}" class="sm-nav-item" title="Projeções">
+        <i class="ti ti-chart-line sm-nav-icon"></i><span class="sm-nav-label">Projeções</span>
+      </a>
+      <a href="{{ url_for('visaoGeral') }}" class="sm-nav-item" title="Visão Geral">
+        <i class="ti ti-chart-bar sm-nav-icon"></i><span class="sm-nav-label">Visão Geral</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Lançamentos</div>
+      <a href="{{ url_for('lancamentos') }}" class="sm-nav-item" title="Despesas">
+        <i class="ti ti-trending-down sm-nav-icon"></i><span class="sm-nav-label">Despesas</span>
+      </a>
+      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Despesas Fixas">
+        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Despesas Fixas</span>
+      </a>
+      <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
+        <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
+      </a>
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Receitas Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Receitas Fixas</span>
+      </a>
+      <div class="sm-nav-divider"></div>
+      <div class="sm-sb-section">Cadastros</div>
+      <a href="{{ url_for('lancamentosConta') }}" class="sm-nav-item" title="Contas">
+        <i class="ti ti-building-bank sm-nav-icon"></i><span class="sm-nav-label">Contas</span>
+      </a>
+      <a href="{{ url_for('lancamentosCartao') }}" class="sm-nav-item" title="Cartões">
+        <i class="ti ti-credit-card sm-nav-icon"></i><span class="sm-nav-label">Cartões</span>
+      </a>
+      <a href="{{ url_for('lancamentosCategorias') }}" class="sm-nav-item" title="Categorias">
+        <i class="ti ti-tag sm-nav-icon"></i><span class="sm-nav-label">Categorias</span>
+      </a>
+    </nav>
+    <div class="sm-sb-footer">
+      <div class="sm-sb-user sm-user-trigger" title="Menu do usuário">
+        <div class="sm-sb-avatar">{{ session.user_nome[0]|upper }}</div>
+        <div class="sm-sb-user-info">
+          <div class="sm-sb-username">{{ session.user_nome }}</div>
+          <div class="sm-sb-userrole">{{ session.user_role }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="sm-content" id="sm-content">
+    <header class="sm-topbar">
+      <div class="sm-topbar-left">
+        <div class="sm-topbar-breadcrumb">
+          <span>Conta</span><span>›</span>
+          <strong style="color:var(--text-primary)">Configurações</strong>
+        </div>
+      </div>
+      <div class="sm-topbar-right">
+        <div class="sm-topbar-user sm-user-trigger" title="Menu do usuário">
+          <div class="sm-topbar-avatar">{{ session.user_nome[0]|upper }}</div>
+          {{ session.user_nome }}
+        </div>
+      </div>
+    </header>
+
+    <main class="sm-main sm-animate">
+      <div class="sm-page-header">
+        <h1 class="sm-page-title">Configurações</h1>
+        <p class="sm-page-subtitle">Gerencie seu perfil e segurança</p>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-8">
+
+          <!-- Perfil -->
+          <div class="config-section">
+            <div class="config-section-header">
+              <div class="config-section-icon"><i class="ti ti-user"></i></div>
+              <div>
+                <div class="config-section-title">Informações do Perfil</div>
+                <div class="config-section-sub">Nome e dados de contato</div>
+              </div>
+            </div>
+            <div class="config-section-body">
+              <form id="formPerfil">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <div class="config-field">
+                      <label class="sm-form-label">Nome completo</label>
+                      <input type="text" class="sm-form-control" id="cfgNome" required>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="config-field">
+                      <label class="sm-form-label">Email <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(não editável)</span></label>
+                      <input type="email" class="sm-form-control" id="cfgEmail" readonly
+                             style="background:var(--bg);cursor:default">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="config-field">
+                      <label class="sm-form-label">Telefone <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+                      <input type="tel" class="sm-form-control" id="cfgTelefone"
+                             placeholder="Ex: (11) 99999-9999">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="config-field">
+                      <label class="sm-form-label">Membro desde</label>
+                      <input type="text" class="sm-form-control" id="cfgCriadoEm" readonly
+                             style="background:var(--bg);cursor:default">
+                    </div>
+                  </div>
+                </div>
+                <div class="d-flex justify-content-end mt-2">
+                  <button type="submit" class="sm-btn sm-btn-primary" id="btnSalvarPerfil">
+                    <i class="ti ti-check"></i> Salvar perfil
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Senha -->
+          <div class="config-section">
+            <div class="config-section-header">
+              <div class="config-section-icon" style="background:#fee2e2;color:var(--red)">
+                <i class="ti ti-lock"></i>
+              </div>
+              <div>
+                <div class="config-section-title">Segurança</div>
+                <div class="config-section-sub">Altere sua senha de acesso</div>
+              </div>
+            </div>
+            <div class="config-section-body">
+              <form id="formSenha">
+                <div class="row g-3">
+                  <div class="col-md-12">
+                    <div class="config-field">
+                      <label class="sm-form-label">Senha atual</label>
+                      <input type="password" class="sm-form-control" id="cfgSenhaAtual"
+                             placeholder="••••••••" autocomplete="current-password">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="config-field">
+                      <label class="sm-form-label">Nova senha</label>
+                      <input type="password" class="sm-form-control" id="cfgNovaSenha"
+                             placeholder="Mínimo 8 caracteres"
+                             autocomplete="new-password"
+                             oninput="atualizarForca(this.value)">
+                      <div class="strength-bar"><div id="cfgForca"></div></div>
+                      <small id="cfgForcaTxt" style="font-size:.68rem;color:var(--text-muted)"></small>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="config-field">
+                      <label class="sm-form-label">Confirmar nova senha</label>
+                      <input type="password" class="sm-form-control" id="cfgConfirmar"
+                             placeholder="Repita a nova senha"
+                             autocomplete="new-password"
+                             oninput="verificarSenhas()">
+                      <small id="cfgMatch" style="font-size:.68rem"></small>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-flex justify-content-end mt-2">
+                  <button type="submit" class="sm-btn sm-btn-primary" id="btnSalvarSenha">
+                    <i class="ti ti-lock-check"></i> Alterar senha
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Card lateral: resumo do perfil -->
+        <div class="col-lg-4">
+          <div class="config-section">
+            <div class="config-section-body text-center">
+              <div class="avatar-circle mx-auto mb-3" id="avatarLetra">?</div>
+              <div class="sm-fw-bold" style="font-size:.96rem" id="resumoNome">—</div>
+              <div class="sm-text-muted" style="font-size:.78rem;margin-top:2px" id="resumoEmail">—</div>
+              <div class="sm-badge sm-badge-blue mt-2" id="resumoRole">user</div>
+              <hr style="border-color:var(--border);margin:16px 0">
+              <div class="d-flex flex-column gap-2 text-start">
+                <div class="d-flex align-items-center gap-2" style="font-size:.78rem;color:var(--text-secondary)">
+                  <i class="ti ti-phone" style="font-size:15px;color:var(--text-muted)"></i>
+                  <span id="resumoTelefone">Sem telefone</span>
+                </div>
+                <div class="d-flex align-items-center gap-2" style="font-size:.78rem;color:var(--text-secondary)">
+                  <i class="ti ti-calendar" style="font-size:15px;color:var(--text-muted)"></i>
+                  <span id="resumoMembro">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user-menu.js') }}"></script>
+
+<script>
+const SB_KEY = 'sm_sidebar';
+const sidebar    = document.getElementById('sm-sidebar');
+const content    = document.getElementById('sm-content');
+const toggleBtn  = document.getElementById('sm-sb-toggle');
+const toggleIcon = document.getElementById('sm-sb-icon');
+function smToggleSidebar() {
+    const mini = sidebar.classList.toggle('mini');
+    content.classList.toggle('expanded', !mini);
+    toggleBtn.classList.toggle('mini', mini);
+    toggleIcon.innerHTML = mini
+        ? '<polyline points="9 18 15 12 9 6"></polyline>'
+        : '<polyline points="15 18 9 12 15 6"></polyline>';
+    localStorage.setItem(SB_KEY, mini ? 'mini' : 'open');
+}
+(function() {
+    const isOpen = localStorage.getItem(SB_KEY) === 'open';
+    sidebar.classList.toggle('mini', !isOpen);
+    content.classList.toggle('expanded', isOpen);
+    toggleBtn.classList.toggle('mini', !isOpen);
+    toggleIcon.innerHTML = isOpen
+        ? '<polyline points="15 18 9 12 15 6"></polyline>'
+        : '<polyline points="9 18 15 12 9 6"></polyline>';
+    document.documentElement.removeAttribute('data-sb');
+})();
+document.addEventListener('DOMContentLoaded', () => {
+    SMUserMenu.init('{{ session.user_nome }}', '{{ session.user_role }}');
+});
+</script>
+
+<script>
+// ── Indicador de força de senha ───────────────────────────────────
+function atualizarForca(senha) {
+    const barra = document.getElementById('cfgForca');
+    const texto = document.getElementById('cfgForcaTxt');
+    let p = 0;
+    if (senha.length >= 8)  p++;
+    if (senha.length >= 12) p++;
+    if (/[A-Z]/.test(senha)) p++;
+    if (/[0-9]/.test(senha)) p++;
+    if (/[^A-Za-z0-9]/.test(senha)) p++;
+    const cfg = [
+        {w:'0%',   cor:'var(--border)',  label:''},
+        {w:'25%',  cor:'var(--red)',     label:'Muito fraca'},
+        {w:'50%',  cor:'var(--amber)',   label:'Fraca'},
+        {w:'75%',  cor:'#ca8a04',        label:'Boa'},
+        {w:'90%',  cor:'var(--green)',   label:'Forte'},
+        {w:'100%', cor:'var(--blue-800)',label:'Muito forte'},
+    ][Math.min(p, 5)];
+    barra.style.width = cfg.w;
+    barra.style.background = cfg.cor;
+    texto.textContent = cfg.label;
+    texto.style.color = cfg.cor;
+}
+
+function verificarSenhas() {
+    const s1 = document.getElementById('cfgNovaSenha').value;
+    const s2 = document.getElementById('cfgConfirmar').value;
+    const el = document.getElementById('cfgMatch');
+    if (!s2) { el.textContent = ''; return; }
+    if (s1 === s2) {
+        el.textContent = '✓ Senhas coincidem';
+        el.style.color = 'var(--green)';
+    } else {
+        el.textContent = '✗ Senhas não coincidem';
+        el.style.color = 'var(--red)';
+    }
+}
+
+// ── Atualizar card lateral ─────────────────────────────────────────
+function atualizarResumo(dados) {
+    const letra = (dados.nome || '?')[0].toUpperCase();
+    document.getElementById('avatarLetra').textContent  = letra;
+    document.getElementById('resumoNome').textContent   = dados.nome || '—';
+    document.getElementById('resumoEmail').textContent  = dados.email || '—';
+    document.getElementById('resumoRole').textContent   = dados.role || 'user';
+    document.getElementById('resumoTelefone').textContent = dados.telefone || 'Sem telefone';
+    document.getElementById('resumoMembro').textContent = dados.criado_em
+        ? 'Membro desde ' + dados.criado_em
+        : '—';
+}
+
+// ── Carregar dados do perfil ───────────────────────────────────────
+function carregarPerfil() {
+    fetch('/api/minha_conta')
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success) { WM.erro('Erro ao carregar perfil.'); return; }
+            document.getElementById('cfgNome').value      = d.nome || '';
+            document.getElementById('cfgEmail').value     = d.email || '';
+            document.getElementById('cfgTelefone').value  = d.telefone || '';
+            document.getElementById('cfgCriadoEm').value  = d.criado_em || '';
+            atualizarResumo(d);
+        })
+        .catch(() => WM.erro('Erro de conexão.'));
+}
+
+// ── Salvar perfil ──────────────────────────────────────────────────
+document.getElementById('formPerfil').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nome     = document.getElementById('cfgNome').value.trim();
+    const telefone = document.getElementById('cfgTelefone').value.trim();
+    if (!nome) { WM.aviso('Nome é obrigatório.'); return; }
+
+    const btn = document.getElementById('btnSalvarPerfil');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader"></i> Salvando…';
+
+    fetch('/api/minha_conta', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ nome, telefone }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            WM.sucesso('Perfil atualizado!');
+            atualizarResumo({ nome, telefone,
+                email: document.getElementById('cfgEmail').value,
+                role:  document.getElementById('resumoRole').textContent,
+                criado_em: document.getElementById('cfgCriadoEm').value });
+        } else {
+            WM.erro(d.error || 'Erro ao salvar.');
+        }
+    })
+    .catch(() => WM.erro('Erro de conexão.'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check"></i> Salvar perfil';
+    });
+});
+
+// ── Alterar senha ──────────────────────────────────────────────────
+document.getElementById('formSenha').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nome        = document.getElementById('cfgNome').value.trim();
+    const senhaAtual  = document.getElementById('cfgSenhaAtual').value;
+    const novaSenha   = document.getElementById('cfgNovaSenha').value;
+    const confirmar   = document.getElementById('cfgConfirmar').value;
+
+    if (!senhaAtual) { WM.aviso('Informe a senha atual.'); return; }
+    if (!novaSenha)  { WM.aviso('Informe a nova senha.'); return; }
+    if (novaSenha.length < 8) { WM.aviso('Nova senha deve ter mínimo 8 caracteres.'); return; }
+    if (novaSenha !== confirmar) { WM.aviso('As senhas não coincidem.'); return; }
+
+    const btn = document.getElementById('btnSalvarSenha');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader"></i> Alterando…';
+
+    fetch('/api/minha_conta', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ nome, senha_atual: senhaAtual, nova_senha: novaSenha }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            WM.sucesso('Senha alterada com sucesso!');
+            document.getElementById('formSenha').reset();
+            document.getElementById('cfgForca').style.width = '0%';
+            document.getElementById('cfgForcaTxt').textContent = '';
+            document.getElementById('cfgMatch').textContent = '';
+        } else {
+            WM.erro(d.error || 'Erro ao alterar senha.');
+        }
+    })
+    .catch(() => WM.erro('Erro de conexão.'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-lock-check"></i> Alterar senha';
+    });
+});
+
+// ── Máscara de telefone ────────────────────────────────────────────
+document.getElementById('cfgTelefone').addEventListener('input', function() {
+    let v = this.value.replace(/\D/g, '').substring(0, 11);
+    if (v.length > 2)  v = '(' + v.substring(0,2) + ') ' + v.substring(2);
+    if (v.length > 10) v = v.substring(0,10) + '-' + v.substring(10);
+    this.value = v;
+});
+
+// Inicializar
+carregarPerfil();
+</script>
+
+</body>
+</html>

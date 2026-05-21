@@ -64,14 +64,14 @@
       <a href="{{ url_for('lancamentos') }}" class="sm-nav-item" title="Despesas">
         <i class="ti ti-trending-down sm-nav-icon"></i><span class="sm-nav-label">Despesas</span>
       </a>
-      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Assinaturas">
-        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Assinaturas</span>
+      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item" title="Despesas Fixas">
+        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Despesas Fixas</span>
       </a>
       <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item active" title="Receitas">
         <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
       </a>
-      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
-        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Receitas Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Receitas Fixas</span>
       </a>
       <div class="sm-nav-divider"></div>
       <div class="sm-sb-section">Cadastros</div>
@@ -265,14 +265,9 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Dias 1-31
-    for (let d=1;d<=31;d++) { const o=document.createElement("option"); o.value=d; o.textContent=`Dia ${d}`; selDia.appendChild(o); }
-
-    // Mostra/oculta campo de dia conforme modo
-    selModo.addEventListener("change", function() {
-        const fixo = this.value === 'fixo';
-        // Ajusta colunas do botão
-    });
+    // Carregar selects
+    carregarCategorias();
+    carregarContas();
 
     // ── Tabela avulsas ──────────────────────────────────────
     function addAvulsa(id, descricao, categoria, conta_nome, valor) {

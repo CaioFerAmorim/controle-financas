@@ -31,8 +31,14 @@ def init_db():
             senha_hash TEXT    NOT NULL,
             role       TEXT    NOT NULL DEFAULT 'user',
             criado_em  DATE    NOT NULL DEFAULT (DATE('now')),
-            ativo      INTEGER NOT NULL DEFAULT 1
+            ativo      INTEGER NOT NULL DEFAULT 1,
+            telefone   TEXT    DEFAULT NULL
         )''')
+        # Migração: adicionar telefone se não existir
+        try:
+            c.execute("ALTER TABLE usuarios ADD COLUMN telefone TEXT DEFAULT NULL")
+        except Exception:
+            pass
 
         # ── transacoes ──────────────────────────────────────────
         c.execute('''CREATE TABLE IF NOT EXISTS transacoes (
@@ -794,6 +800,295 @@ def dashboard_data():
         'receitas_mes':   receitas_mes,
         'gasto_credito':  fatura_atual,
         'disponivel_mes': round(saldo_total + rec_pendentes - fatura_atual - desp_pendentes, 2),
+    })
+
+
+@app.route('/api/dashboard_mes')
+@login_required
+def api_dashboard_mes():
+    """
+    Dashboard mensal com navegação por mês.
+    Parâmetros: ?ano=2026&mes=5
+    Lógica:
+      - Passado: dados realizados do banco
+      - Atual: realizados + pendentes (fixas não geradas ainda)
+      - Futuro: só projeção (fixas + parcelas)
+    Alocação de crédito: pelo mês de FECHAMENTO da fatura, não vencimento.
+    """
+    hoje = date.today()
+    try:
+        ano = int(request.args.get('ano', hoje.year))
+        mes = int(request.args.get('mes', hoje.month))
+        # Validar
+        if not (1 <= mes <= 12): raise ValueError
+    except (ValueError, TypeError):
+        ano, mes = hoje.year, hoje.month
+
+    ref = date(ano, mes, 1)
+    is_atual  = (ano == hoje.year and mes == hoje.month)
+    is_futuro = ref > date(hoje.year, hoje.month, 1)
+    mes_str   = f"{ano:04d}-{mes:02d}"
+    user_id   = uid()
+
+    with get_db() as conn:
+        c = conn.cursor()
+
+        # ── Saldo total das contas (sempre o atual, independente do mês) ──
+        c.execute("SELECT COALESCE(SUM(saldo),0) FROM contas WHERE user_id=?", (user_id,))
+        saldo_total = round(c.fetchone()[0], 2)
+
+        # ── Receitas realizadas no mês ────────────────────────────────────
+        if not is_futuro:
+            c.execute("""
+                SELECT COALESCE(SUM(valor),0) FROM transacoes
+                WHERE tipo='receita' AND user_id=?
+                  AND strftime('%Y-%m', data_lancamento)=?
+            """, (user_id, mes_str))
+            receitas_realizadas = round(c.fetchone()[0], 2)
+        else:
+            receitas_realizadas = 0.0
+
+        # ── Receitas fixas pendentes no mês ───────────────────────────────
+        # Para mês atual: fixas que ainda não caíram
+        # Para mês futuro: todas as fixas ativas
+        c.execute("SELECT id, valor, dia_mes, modo_dia FROM receitas_fixas WHERE ativa=1 AND user_id=?", (user_id,))
+        receitas_fixas_rows = c.fetchall()
+        receitas_pendentes = 0.0
+        for rf_id, valor, dia_mes, modo in receitas_fixas_rows:
+            data_oc = data_ocorrencia(ano, mes, dia_mes, modo or 'fixo')
+            if is_atual and data_oc <= hoje:
+                continue  # já gerada ou passou
+            if not is_futuro and not is_atual:
+                continue  # passado: não conta pendente
+            chave = f'_rf_{rf_id}'
+            c.execute("""SELECT COUNT(*) FROM transacoes
+                WHERE tipo='receita' AND categoria=? AND user_id=?
+                AND strftime('%Y-%m',data_lancamento)=?""",
+                (chave, user_id, mes_str))
+            if c.fetchone()[0] > 0:
+                continue  # já gerada
+            receitas_pendentes += valor
+        receitas_pendentes = round(receitas_pendentes, 2)
+
+        # ── Despesas débito realizadas no mês ─────────────────────────────
+        if not is_futuro:
+            c.execute("""
+                SELECT COALESCE(SUM(valor),0) FROM transacoes
+                WHERE tipo='despesa' AND tipo_compra='debito' AND user_id=?
+                  AND strftime('%Y-%m', data_lancamento)=?
+            """, (user_id, mes_str))
+            debito_realizado = round(c.fetchone()[0], 2)
+        else:
+            debito_realizado = 0.0
+
+        # ── Fatura de crédito alocada neste mês (pelo fechamento) ─────────
+        c.execute("""
+            SELECT id, data_vencimento, dias_fechamento FROM cartoes
+            WHERE tipo_pagamento IN ('credito','multiplo')
+              AND data_vencimento IS NOT NULL AND dias_fechamento IS NOT NULL
+              AND user_id=?
+        """, (user_id,))
+        cartoes_cred = c.fetchall()
+
+        fatura_credito = 0.0
+        detalhes_faturas = []
+        for cartao_id, dia_venc, dias_fech in cartoes_cred:
+            # Período cuja fatura FECHA neste mês
+            try:
+                fech_este_mes = date(ano, mes, 1)
+                # Calcular o fechamento do mês: vencimento - dias_fechamento
+                try:
+                    venc = date(ano, mes, dia_venc)
+                except ValueError:
+                    import calendar as cal
+                    venc = date(ano, mes, cal.monthrange(ano, mes)[1])
+                fech = venc - timedelta(days=dias_fech)
+
+                # Se o fechamento não cai neste mês, ajustar para o ciclo correto
+                # Início do período = fechamento do mês anterior
+                venc_ant = venc - relativedelta(months=1)
+                fech_ant = venc_ant - timedelta(days=dias_fech)
+                inicio = fech_ant
+                fim    = fech - timedelta(days=1)
+            except Exception:
+                continue
+
+            # Só processa se o fechamento cai neste mês
+            if fech.year != ano or fech.month != mes:
+                # Tentar o ciclo seguinte
+                try:
+                    venc2 = venc + relativedelta(months=1)
+                    fech2 = venc2 - timedelta(days=dias_fech)
+                    if fech2.year == ano and fech2.month == mes:
+                        venc = venc2
+                        fech = fech2
+                        fech_ant2 = venc - relativedelta(months=1) - timedelta(days=dias_fech)
+                        inicio = fech_ant2
+                        fim = fech2 - timedelta(days=1)
+                    else:
+                        # Usar periodo_fatura_atual como fallback para mês atual
+                        if is_atual:
+                            inicio, fim, _ = periodo_fatura_atual(dia_venc, dias_fech)
+                        else:
+                            continue
+                except Exception:
+                    continue
+
+            gasto_cartao = 0.0
+
+            if not is_futuro:
+                # Avista no período
+                c.execute("""
+                    SELECT COALESCE(SUM(valor),0) FROM transacoes
+                    WHERE tipo='despesa' AND tipo_compra='credito' AND pagamento='avista'
+                      AND id_cartao=? AND user_id=?
+                      AND data_lancamento BETWEEN ? AND ?
+                """, (cartao_id, user_id, inicio.isoformat(), fim.isoformat()))
+                gasto_cartao += c.fetchone()[0]
+
+                # Parceladas: parcela do período
+                c.execute("""
+                    SELECT valor, parcelas, data_lancamento FROM transacoes
+                    WHERE tipo='despesa' AND tipo_compra='credito' AND pagamento='parcelado'
+                      AND parcelas>=2 AND id_cartao=? AND user_id=?
+                """, (cartao_id, user_id))
+                for vt, parc, ds in c.fetchall():
+                    try: dc = date.fromisoformat(str(ds)[:10])
+                    except: continue
+                    gasto_cartao += valor_parcela_na_fatura(vt, parc, dc, inicio, fim)
+
+            # Despesas fixas de crédito pendentes neste mês
+            c.execute("""
+                SELECT id, valor, dia_mes, modo_dia FROM despesas_fixas
+                WHERE ativa=1 AND id_cartao=? AND user_id=?
+            """, (cartao_id, user_id))
+            for df_id, valor, dia_mes, modo in c.fetchall():
+                data_oc = data_ocorrencia(ano, mes, dia_mes, modo or 'fixo')
+                if is_atual and data_oc <= hoje: continue
+                chave = f'_df_{df_id}'
+                c.execute("""SELECT COUNT(*) FROM transacoes
+                    WHERE tipo='despesa' AND categoria=? AND user_id=?
+                    AND strftime('%Y-%m',data_lancamento)=?""",
+                    (chave, user_id, mes_str))
+                if c.fetchone()[0] > 0: continue
+                gasto_cartao += valor
+
+            fatura_credito += gasto_cartao
+            c.execute("SELECT nome, limite FROM cartoes WHERE id=?", (cartao_id,))
+            row = c.fetchone()
+            if row:
+                detalhes_faturas.append({
+                    'nome': row[0], 'gasto': round(gasto_cartao, 2),
+                    'limite': row[1] or 0,
+                    'inicio': inicio.strftime('%d/%m/%Y'),
+                    'fechamento': fech.strftime('%d/%m/%Y'),
+                })
+
+        fatura_credito = round(fatura_credito, 2)
+
+        # ── Despesas fixas débito pendentes ───────────────────────────────
+        c.execute("""
+            SELECT id, valor, dia_mes, modo_dia FROM despesas_fixas
+            WHERE ativa=1 AND id_cartao IS NULL AND id_conta IS NOT NULL AND user_id=?
+        """, (user_id,))
+        debito_fixo_pendente = 0.0
+        for df_id, valor, dia_mes, modo in c.fetchall():
+            data_oc = data_ocorrencia(ano, mes, dia_mes, modo or 'fixo')
+            if is_atual and data_oc <= hoje: continue
+            if not is_futuro and not is_atual: continue
+            chave = f'_df_{df_id}'
+            c.execute("""SELECT COUNT(*) FROM transacoes
+                WHERE tipo='despesa' AND categoria=? AND user_id=?
+                AND strftime('%Y-%m',data_lancamento)=?""",
+                (chave, user_id, mes_str))
+            if c.fetchone()[0] > 0: continue
+            debito_fixo_pendente += valor
+        debito_fixo_pendente = round(debito_fixo_pendente, 2)
+
+        # ── Abas por conta ────────────────────────────────────────────────
+        c.execute("""
+            SELECT co.id, co.nome, co.saldo FROM contas co WHERE co.user_id=?
+        """, (user_id,))
+        contas_rows = c.fetchall()
+        abas_contas = []
+        for conta_id, conta_nome, conta_saldo in contas_rows:
+            # Entradas da conta no mês
+            if not is_futuro:
+                c.execute("""
+                    SELECT COALESCE(SUM(valor),0) FROM transacoes
+                    WHERE tipo='receita' AND id_conta=? AND user_id=?
+                      AND strftime('%Y-%m',data_lancamento)=?
+                """, (conta_id, user_id, mes_str))
+                entradas = round(c.fetchone()[0], 2)
+                c.execute("""
+                    SELECT COALESCE(SUM(valor),0) FROM transacoes
+                    WHERE tipo='despesa' AND tipo_compra='debito' AND id_conta=? AND user_id=?
+                      AND strftime('%Y-%m',data_lancamento)=?
+                """, (conta_id, user_id, mes_str))
+                saidas = round(c.fetchone()[0], 2)
+            else:
+                entradas, saidas = 0.0, 0.0
+
+            # Cartões vinculados
+            c.execute("""
+                SELECT id, nome, tipo_pagamento, data_vencimento, dias_fechamento, limite
+                FROM cartoes WHERE conta=? AND user_id=?
+            """, (conta_id, user_id))
+            cartoes_conta = []
+            for cid, cnome, ctipo, cdia_venc, cdias_fech, climit in c.fetchall():
+                cartoes_conta.append({
+                    'id': cid, 'nome': cnome, 'tipo': ctipo,
+                    'limite': climit or 0
+                })
+
+            abas_contas.append({
+                'id': conta_id, 'nome': conta_nome,
+                'saldo': round(conta_saldo, 2),
+                'entradas': entradas, 'saidas': saidas,
+                'cartoes': cartoes_conta,
+            })
+
+        # ── Gastos por categoria ──────────────────────────────────────────
+        categorias = gastos_categoria_mes(ano, mes, conn, limit=5) if not is_futuro else []
+
+        # ── Últimas transações ────────────────────────────────────────────
+        if not is_futuro:
+            c.execute("""
+                SELECT t.id, t.descricao, t.tipo, t.valor, t.categoria,
+                       co.nome, ca.nome, t.data_lancamento
+                FROM transacoes t
+                LEFT JOIN contas  co ON t.id_conta  = co.id
+                LEFT JOIN cartoes ca ON t.id_cartao = ca.id
+                WHERE t.user_id=? AND strftime('%Y-%m',t.data_lancamento)=?
+                ORDER BY t.data_lancamento DESC, t.id DESC LIMIT 15
+            """, (user_id, mes_str))
+            transacoes = [dict(zip(
+                ['id','descricao','tipo','valor','categoria','conta_nome','cartao_nome','data_lancamento'],
+                r)) for r in c.fetchall()]
+        else:
+            transacoes = []
+
+    # ── Disponível ────────────────────────────────────────────────────────
+    # Saldo atual + receitas pendentes - crédito pendente - débito fixo pendente
+    # (débito realizado já está no saldo)
+    disponivel = round(
+        saldo_total + receitas_pendentes - fatura_credito - debito_fixo_pendente, 2
+    )
+
+    return jsonify({
+        'ano': ano, 'mes': mes,
+        'is_atual': is_atual, 'is_futuro': is_futuro,
+        'saldo_total':          saldo_total,
+        'receitas_realizadas':  receitas_realizadas,
+        'receitas_pendentes':   receitas_pendentes,
+        'debito_realizado':     debito_realizado,
+        'fatura_credito':       fatura_credito,
+        'debito_fixo_pendente': debito_fixo_pendente,
+        'disponivel':           disponivel,
+        'detalhes_faturas':     detalhes_faturas,
+        'abas_contas':          abas_contas,
+        'categorias':           categorias,
+        'transacoes':           transacoes,
     })
 
 @app.route('/api/dashboard_cartao/<int:cartao_id>')
@@ -1771,12 +2066,29 @@ def api_admin_usuario(user_id):
 
     return jsonify({'success': True})
 
-@app.route('/api/minha_conta', methods=['POST'])
+@app.route('/api/minha_conta', methods=['GET','POST'])
 @login_required
 def minha_conta():
-    """Permite ao usuário alterar nome e/ou senha."""
-    data = request.get_json()
-    nome      = (data.get('nome') or '').strip()
+    if request.method == 'GET':
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("SELECT nome, email, telefone, role, criado_em FROM usuarios WHERE id=?", (uid(),))
+            row = c.fetchone()
+            if not row:
+                return jsonify({'success': False, 'error': 'Usuário não encontrado.'})
+            return jsonify({
+                'success': True,
+                'nome':      row[0],
+                'email':     row[1],
+                'telefone':  row[2] or '',
+                'role':      row[3],
+                'criado_em': row[4],
+            })
+
+    # POST — atualizar dados
+    data        = request.get_json()
+    nome        = (data.get('nome') or '').strip()
+    telefone    = (data.get('telefone') or '').strip()
     senha_atual = data.get('senha_atual') or ''
     nova_senha  = data.get('nova_senha')  or ''
 
@@ -1790,8 +2102,8 @@ def minha_conta():
         if not row:
             return jsonify({'success': False, 'error': 'Usuário não encontrado.'})
 
-        updates = ['nome=?']
-        params  = [nome]
+        updates = ['nome=?', 'telefone=?']
+        params  = [nome, telefone or None]
 
         if nova_senha:
             if not check_password_hash(row[0], senha_atual):
@@ -1807,6 +2119,11 @@ def minha_conta():
 
     session['user_nome'] = nome
     return jsonify({'success': True})
+
+@app.route('/configuracoes')
+@login_required
+def configuracoes():
+    return render_template('configuracoes.html')
 
 if __name__ == '__main__':
     init_db()

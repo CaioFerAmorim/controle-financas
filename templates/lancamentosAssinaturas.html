@@ -3,16 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assinaturas — Smart Money</title>
+    <title>Despesas Fixas — Smart Money</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smart-money.css') }}">
     <link rel="icon" href="https://raw.githubusercontent.com/CaioFerAmorim/controle-financas/refs/heads/main/static/img/logoWildMoneyIcon.ico" type="image/x-icon">
-    
 <script>
-  // Aplica estado da sidebar antes do primeiro paint — evita flash
   (function() {
     if (localStorage.getItem('sm_sidebar') === 'open') {
       document.documentElement.setAttribute('data-sb', 'open');
@@ -20,21 +18,19 @@
   })();
 </script>
 <style>
-  /* Estado inicial da sidebar via atributo — sem flash e sem animação */
   html[data-sb="open"] .sm-sidebar,
   html[data-sb="open"] .sm-content,
   html[data-sb="open"] .sm-sb-toggle,
-  html[data-sb="open"] #sm-sb-icon        { transition: none !important; }
-  html[data-sb="open"] .sm-sidebar        { width: var(--sidebar-w); }
-  html[data-sb="open"] .sm-content        { margin-left: var(--sidebar-w); }
-  html[data-sb="open"] .sm-sb-toggle      { left: calc(var(--sidebar-w) - 13px); }
-  html[data-sb="open"] #sm-sb-icon        { transform: rotate(180deg); }
+  html[data-sb="open"] #sm-sb-icon { transition: none !important; }
+  html[data-sb="open"] .sm-sidebar  { width: var(--sidebar-w); }
+  html[data-sb="open"] .sm-content  { margin-left: var(--sidebar-w); }
+  html[data-sb="open"] .sm-sb-toggle { left: calc(var(--sidebar-w) - 13px); }
+  html[data-sb="open"] #sm-sb-icon  { transform: rotate(180deg); }
 </style>
 </head>
 <body>
 <div class="sm-shell">
 
-  <!-- SIDEBAR -->
   <aside class="sm-sidebar mini" id="sm-sidebar">
     <button class="sm-sb-toggle mini" id="sm-sb-toggle" onclick="smToggleSidebar()" title="Expandir menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="sm-sb-icon">
@@ -69,14 +65,14 @@
       <a href="{{ url_for('lancamentos') }}" class="sm-nav-item" title="Despesas">
         <i class="ti ti-trending-down sm-nav-icon"></i><span class="sm-nav-label">Despesas</span>
       </a>
-      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item active" title="Assinaturas">
-        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Assinaturas</span>
+      <a href="{{ url_for('lancamentosAssinaturas') }}" class="sm-nav-item active" title="Despesas Fixas">
+        <i class="ti ti-refresh sm-nav-icon"></i><span class="sm-nav-label">Despesas Fixas</span>
       </a>
       <a href="{{ url_for('lancamentosReceita') }}" class="sm-nav-item" title="Receitas">
         <i class="ti ti-trending-up sm-nav-icon"></i><span class="sm-nav-label">Receitas</span>
       </a>
-      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Rec. Fixas">
-        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Rec. Fixas</span>
+      <a href="{{ url_for('lancamentosReceitaFixa') }}" class="sm-nav-item" title="Receitas Fixas">
+        <i class="ti ti-calendar-repeat sm-nav-icon"></i><span class="sm-nav-label">Receitas Fixas</span>
       </a>
       <div class="sm-nav-divider"></div>
       <div class="sm-sb-section">Cadastros</div>
@@ -101,14 +97,12 @@
     </div>
   </aside>
 
-  <!-- CONTENT -->
   <div class="sm-content" id="sm-content">
     <header class="sm-topbar">
       <div class="sm-topbar-left">
         <div class="sm-topbar-breadcrumb">
-          <span>Lançamentos</span>
-          <span>›</span>
-          <strong style="color:var(--text-primary)">Assinaturas</strong>
+          <span>Lançamentos</span><span>›</span>
+          <strong style="color:var(--text-primary)">Despesas Fixas</strong>
         </div>
       </div>
       <div class="sm-topbar-right">
@@ -118,25 +112,24 @@
         </div>
       </div>
     </header>
+
     <main class="sm-main sm-animate">
       <div class="sm-page-header">
-        <h1 class="sm-page-title">Assinaturas</h1>
+        <h1 class="sm-page-title">Despesas Fixas</h1>
+        <p class="sm-page-subtitle">Gastos recorrentes — debitados automaticamente no dia agendado</p>
       </div>
 
       <!-- Formulário -->
       <div class="sm-card mb-4">
         <div class="sm-card-header">
-          <div>
-            <div class="sm-card-title">Nova Assinatura / Despesa Fixa</div>
-            <div class="sm-card-subtitle">Saldo debitado automaticamente no dia agendado</div>
-          </div>
+          <div class="sm-card-title">Nova Despesa Fixa</div>
         </div>
         <div class="sm-card-body">
           <form id="formAssin">
             <div class="row g-3 mb-3">
               <div class="col-md-4">
                 <label class="sm-form-label">Descrição</label>
-                <input type="text" class="sm-form-control" id="descAssin" placeholder="Ex: Netflix, Academia..." required>
+                <input type="text" class="sm-form-control" id="descAssin" placeholder="Ex: Netflix, Academia, Aluguel..." required>
               </div>
               <div class="col-md-3">
                 <label class="sm-form-label">Categoria</label>
@@ -175,9 +168,9 @@
                 <label class="sm-form-label">Dia</label>
                 <select id="diaAssin" class="sm-form-select"><option value="">—</option></select>
               </div>
-              <div class="col-md-2 d-flex align-items-end">
+              <div class="col-md-1 d-flex align-items-end">
                 <button type="submit" class="sm-btn sm-btn-primary w-100">
-                  <i class="ti ti-plus"></i> Adicionar
+                  <i class="ti ti-plus"></i>
                 </button>
               </div>
             </div>
@@ -185,10 +178,10 @@
         </div>
       </div>
 
-      <!-- Tabela Assinaturas Ativas -->
-      <div class="sm-card mb-4">
+      <!-- Tabela -->
+      <div class="sm-card">
         <div class="sm-card-header">
-          <div class="sm-card-title">Despesas Fixas</div>
+          <div class="sm-card-title">Despesas Fixas cadastradas</div>
           <div class="d-flex align-items-center gap-2">
             <div id="toolbarAssin"></div>
             <span class="sm-text-muted" style="font-size:.75rem" id="infoAssin">—</span>
@@ -208,7 +201,6 @@
         </div>
       </div>
 
-      
     </main>
   </div>
 </div>
@@ -217,14 +209,14 @@
 <script src="{{ url_for('static', filename='js/modal-utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/tabela-utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/editar-utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user-menu.js') }}"></script>
 
 <script>
 const SB_KEY = 'sm_sidebar';
-const sidebar   = document.getElementById('sm-sidebar');
-const content   = document.getElementById('sm-content');
-const toggleBtn = document.getElementById('sm-sb-toggle');
+const sidebar    = document.getElementById('sm-sidebar');
+const content    = document.getElementById('sm-content');
+const toggleBtn  = document.getElementById('sm-sb-toggle');
 const toggleIcon = document.getElementById('sm-sb-icon');
-
 function smToggleSidebar() {
     const mini = sidebar.classList.toggle('mini');
     content.classList.toggle('expanded', !mini);
@@ -234,7 +226,6 @@ function smToggleSidebar() {
         : '<polyline points="15 18 9 12 15 6"></polyline>';
     localStorage.setItem(SB_KEY, mini ? 'mini' : 'open');
 }
-
 (function() {
     const isOpen = localStorage.getItem(SB_KEY) === 'open';
     sidebar.classList.toggle('mini', !isOpen);
@@ -243,313 +234,10 @@ function smToggleSidebar() {
     toggleIcon.innerHTML = isOpen
         ? '<polyline points="15 18 9 12 15 6"></polyline>'
         : '<polyline points="9 18 15 12 9 6"></polyline>';
-    // Remove atributo após JS assumir controle
     document.documentElement.removeAttribute('data-sb');
 })();
-</script>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-
-    // ── Paginador ────────────────────────────────────────────
-    function criarPaginador(tbody, selLinhas, ulPag, infoSpan) {
-        let linhas = [], pag = 1;
-        const ipp = () => parseInt(selLinhas.value);
-        const tp  = () => Math.max(1, Math.ceil(linhas.length / ipp()));
-
-        function render() {
-            const total = linhas.length, pg = tp();
-            pag = Math.min(pag, pg);
-            const ini = (pag - 1) * ipp(), fim = Math.min(ini + ipp(), total);
-            linhas.forEach((tr, i) => tr.style.display = (i >= ini && i < fim) ? '' : 'none');
-            if (infoSpan) infoSpan.textContent = total === 0
-                ? 'Nenhum registro'
-                : 'Mostrando ' + (ini + 1) + '\u2013' + fim + ' de ' + total + ' registro' + (total !== 1 ? 's' : '');
-            ulPag.innerHTML = '';
-            let b = Math.max(1, pag - 2), e = Math.min(pg, b + 4);
-            if (e - b < 4) b = Math.max(1, e - 4);
-            const add = (lbl, p, dis, act) => {
-                const li = document.createElement('li');
-                li.className = 'page-item' + (dis ? ' disabled' : '') + (act ? ' active' : '');
-                li.innerHTML = '<button class="page-link">' + lbl + '</button>';
-                if (!dis && !act) li.querySelector('button').onclick = () => { pag = p; render(); };
-                ulPag.appendChild(li);
-            };
-            add('«', 1, pag === 1); add('‹', pag - 1, pag === 1);
-            for (let p = b; p <= e; p++) add(p, p, false, p === pag);
-            add('›', pag + 1, pag === pg); add('»', pg, pag === pg);
-        }
-
-        selLinhas.addEventListener('change', () => { pag = 1; render(); });
-        return {
-            adicionar(tr) { linhas.push(tr); tbody.appendChild(tr); render(); },
-            remover(tr)   { linhas = linhas.filter(l => l !== tr); tr.remove(); render(); }
-        };
-    }
-
-    const pagAssin = new TabelaManager({
-        tbody:     document.getElementById("tabelaAssin"),
-        thead:     document.getElementById("theadAssin"),
-        toolbar:   document.getElementById("toolbarAssin"),
-        selLinhas: document.getElementById("ippAssin"),
-        ulPag:     document.getElementById("pagAssin"),
-        infoSpan:  document.getElementById("infoAssin"),
-        onEditar:  (meta, tr) => abrirEdicaoAssin(meta, tr),
-        colunas: [
-            { chave: 'descricao',  tipo: 'texto',  label: 'Descrição'          },
-            { chave: 'categoria',  tipo: 'texto',  label: 'Categoria',  opcoes: true },
-            { chave: 'cobrado_em', tipo: 'texto',  label: 'Cobrado em', opcoes: true },
-            { chave: 'quando',     tipo: 'texto',  label: 'Quando',     opcoes: true },
-            { chave: 'valor',      tipo: 'numero', label: 'Valor'               },
-            { chave: 'status',     tipo: 'texto',  label: 'Status',     opcoes: true },
-            { chave: 'acoes',      tipo: 'acoes',  label: 'Ações'               },
-        ]
-    });
-
-    // ── Preenche dias 1-31 ───────────────────────────────────
-    const selDia = document.getElementById("diaAssin");
-    for (let d = 1; d <= 31; d++) {
-        const o = document.createElement("option");
-        o.value = d; o.textContent = 'Dia ' + d;
-        selDia.appendChild(o);
-    }
-
-    // ── Tipo de cobrador (cartão / conta) ────────────────────
-    const selTipoCobrador = document.getElementById("tipoCobradorAssin");
-    const campoCartao     = document.getElementById("campoCartaoAssin");
-    const campoConta      = document.getElementById("campoContaAssin");
-    selTipoCobrador.addEventListener("change", function () {
-        if (this.value === 'cartao') {
-            campoCartao.style.display = ''; campoConta.style.display = 'none';
-        } else {
-            campoCartao.style.display = 'none'; campoConta.style.display = '';
-        }
-    });
-
-    // ── Modo do dia ──────────────────────────────────────────
-    const selModo  = document.getElementById("modoDiaAssin");
-    const campoDia = document.getElementById("campoDiaAssin");
-    selModo.addEventListener("change", function () {
-        campoDia.style.display = this.value === 'fixo' ? '' : 'none';
-    });
-
-    // ── Carrega selects ──────────────────────────────────────
-    function carregarCategorias() {
-        fetch("/api/categorias?tipo=despesa").then(r => r.json()).then(data => {
-            const sel = document.getElementById("catAssin");
-            sel.innerHTML = '<option value="">Selecione...</option>';
-            data.categorias.forEach(c => {
-                const o = document.createElement("option");
-                o.value = c.nome; o.textContent = c.nome;
-                sel.appendChild(o);
-            });
-        });
-    }
-
-    function carregarCartoes() {
-        fetch("/api/cartoes_disponiveis").then(r => r.json()).then(data => {
-            const sel = document.getElementById("cartaoAssin");
-            sel.innerHTML = '<option value="">Selecione...</option>';
-            // Só cartões de crédito e múltiplo para assinaturas no crédito
-            data.cartoes.filter(c => c.tipo_pagamento !== 'debito').forEach(c => {
-                const o = document.createElement("option");
-                o.value = c.id; o.textContent = c.nome;
-                sel.appendChild(o);
-            });
-        });
-    }
-
-    function carregarContas() {
-        fetch("/api/contas").then(r => r.json()).then(data => {
-            const sel = document.getElementById("contaAssin");
-            sel.innerHTML = '<option value="">Selecione...</option>';
-            data.contas.forEach(c => {
-                const o = document.createElement("option");
-                o.value = c.id; o.textContent = c.nome;
-                sel.appendChild(o);
-            });
-        });
-    }
-
-    // ── Adiciona linha ───────────────────────────────────────
-    function addAssinatura(df) {
-        const tr = document.createElement("tr");
-        tr.dataset.id = df.id;
-
-        const vFmt = parseFloat(df.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        const modoLabels = {
-            fixo:          'Dia ' + df.dia_mes,
-            primeiro_util: '1\u00ba dia \u00fatil',
-            ultimo_util:   '\u00daltimo dia \u00fatil'
-        };
-        const quando = modoLabels[df.modo_dia] || ('Dia ' + df.dia_mes);
-
-        const cobradoEm = df.cartao_nome
-            ? '<span class="badge bg-primary">' + df.cartao_nome + '</span>'
-            : '<span class="badge bg-success">' + (df.conta_nome || 'Conta') + '</span>';
-
-        const statusBadge = df.ativa
-            ? '<span class="badge bg-success">Ativa</span>'
-            : '<span class="badge bg-secondary">Pausada</span>';
-
-        const btnPausar = df.ativa
-            ? '<button class="btn btn-warning btn-sm me-1 btn-pausar" data-ativa="0">Pausar</button>'
-            : '<button class="btn btn-success btn-sm me-1 btn-pausar" data-ativa="1">Ativar</button>';
-
-        tr.innerHTML =
-            '<td class="fw-bold">' + df.descricao + '</td>' +
-            '<td><span class="badge bg-light text-dark border">' + (df.categoria || '—') + '</span></td>' +
-            '<td>' + cobradoEm + '</td>' +
-            '<td class="text-center">' + quando + '</td>' +
-            '<td class="text-end fw-bold text-danger">R$ ' + vFmt + '</td>' +
-            '<td class="text-center">' + statusBadge + '</td>' +
-            '<td class="text-center">' + btnPausar +
-            '<button class="btn btn-outline-danger btn-sm btn-remover">Remover</button></td>';
-
-        tr.querySelector(".btn-pausar").addEventListener("click", function () {
-            const novaAtiva = parseInt(this.dataset.ativa);
-            fetch("/api/pausar_despesa_fixa", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({id: df.id, ativa: novaAtiva})
-            })
-            .then(r => r.json())
-            .then(d => {
-                if (d.success) { pagAssin.remover(tr); addAssinatura(Object.assign({}, df, {ativa: novaAtiva})); }
-            });
-        });
-
-        tr.querySelector(".btn-remover").addEventListener("click", () => {
-            WM.confirmar('"' + df.descricao + '" removida', () => {
-                pagAssin.remover(tr);
-                fetch("/api/remover_despesa_fixa", {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({id: df.id})
-                })
-                .then(r => r.json())
-                .then(d => { if (!d.success) WM.erro("Erro: " + (d.error || "desconhecido")); });
-            });
-        });
-
-        pagAssin.adicionar(tr, {
-            descricao:  df.descricao,
-            categoria:  df.categoria || "",
-            cobrado_em: df.cartao_nome || df.conta_nome || "",
-            quando:     quando,
-            valor:      parseFloat(df.valor),
-            status:     df.ativa ? "Ativa" : "Pausada",
-        });
-    }
-
-    // ── Submit ───────────────────────────────────────────────
-    document.getElementById("formAssin").addEventListener("submit", function (e) {
-        e.preventDefault();
-
-        const descricao    = document.getElementById("descAssin").value.trim();
-        const categoria    = document.getElementById("catAssin").value;
-        const valor        = document.getElementById("valorAssin").value;
-        const tipoCobrador = document.getElementById("tipoCobradorAssin").value;
-        const modo_dia     = document.getElementById("modoDiaAssin").value;
-        const dia_mes      = modo_dia === 'fixo' ? (parseInt(document.getElementById("diaAssin").value) || 1) : 1;
-
-        let id_cartao = null, id_conta = null, cartao_nome = null, conta_nome = null;
-
-        if (tipoCobrador === 'cartao') {
-            const sel = document.getElementById("cartaoAssin");
-            id_cartao   = sel.value;
-            cartao_nome = sel.options[sel.selectedIndex].text;
-            if (!id_cartao) { WM.aviso("Selecione um cartão"); return; }
-        } else {
-            const sel = document.getElementById("contaAssin");
-            id_conta   = sel.value;
-            conta_nome = sel.options[sel.selectedIndex].text;
-            if (!id_conta) { WM.aviso("Selecione uma conta"); return; }
-        }
-
-        if (modo_dia === 'fixo' && !dia_mes) { WM.aviso("Selecione o dia do mês"); return; }
-
-        fetch("/api/adicionar_despesa_fixa", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({descricao, categoria, valor, id_cartao, id_conta, dia_mes, modo_dia})
-        })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) {
-                addAssinatura({
-                    id: d.id, descricao, categoria, valor,
-                    id_cartao, cartao_nome, id_conta, conta_nome,
-                    dia_mes, modo_dia, ativa: 1
-                });
-                this.reset();
-                selModo.value = 'fixo';
-                campoDia.style.display = '';
-                selTipoCobrador.value = 'cartao';
-                campoCartao.style.display = ''; campoConta.style.display = 'none';
-            } else {
-                WM.erro("Erro: " + (d.error || "desconhecido"));
-            }
-        });
-    });
-
-
-    const editorAssin = new EditorPanel('editorAssin');
-
-    function abrirEdicaoAssin(meta, tr) {
-        fetch('/api/categorias?tipo=despesa').then(r => r.json()).then(catData => {
-            const cats = catData.categorias.map(c => c.nome);
-            const modos = [
-                { value: 'fixo',          label: 'Dia fixo do mês' },
-                { value: 'primeiro_util', label: '1º dia útil' },
-                { value: 'ultimo_util',   label: 'Último dia útil' },
-            ];
-            const dias = Array.from({length:31}, (_,i) => ({value: String(i+1), label: `Dia ${i+1}`}));
-
-            editorAssin.abrir({
-                titulo: 'Editar Assinatura',
-                campos: [
-                    { chave: 'descricao', tipo: 'text',     label: 'Descrição', valor: meta.descricao, required: true },
-                    { chave: 'categoria', tipo: 'select',   label: 'Categoria', valor: meta.categoria, opcoes: cats },
-                    { chave: 'valor',     tipo: 'number',   label: 'Valor (R$)', valor: meta.valor, min: 0.01, step: 0.01, required: true },
-                    { chave: 'cobrado_em',tipo: 'readonly', label: 'Cobrado em', valor: meta.cobrado_em, help: 'Para alterar o cartão/conta, remova e recadastre.' },
-                    { chave: 'modo_dia',  tipo: 'select',   label: 'Quando cobrar', valor: meta.modo_dia || 'fixo', opcoes: modos },
-                    { chave: 'dia_mes',   tipo: 'select',   label: 'Dia do mês', valor: String(meta.dia_mes), opcoes: dias },
-                ],
-                onSalvar: (dados) => apiAtualizar('/api/atualizar_despesa_fixa', {
-                    id: tr.dataset.id, descricao: dados.descricao,
-                    categoria: dados.categoria, valor: parseFloat(dados.valor),
-                    modo_dia: dados.modo_dia, dia_mes: parseInt(dados.dia_mes),
-                }).then(ok => {
-                    if (!ok) return false;
-                    const novoMeta = {...meta,
-                        descricao: dados.descricao, categoria: dados.categoria,
-                        valor: parseFloat(dados.valor), modo_dia: dados.modo_dia,
-                        dia_mes: parseInt(dados.dia_mes)
-                    };
-                    pagAssin.remover(tr);
-                    addAssinatura(novoMeta);
-                    return true;
-                })
-            });
-        });
-    }
-
-    // ── Carrega existentes ───────────────────────────────────
-    fetch("/api/despesas_fixas")
-        .then(r => r.json())
-        .then(data => data.despesas_fixas.forEach(df => addAssinatura(df)));
-
-    carregarCategorias();
-    carregarCartoes();
-    carregarContas();
+document.addEventListener('DOMContentLoaded', () => {
+    SMUserMenu.init('{{ session.user_nome }}', '{{ session.user_role }}');
 });
 </script>
-<script src="{{ url_for('static', filename='js/user-menu.js') }}"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    SMUserMenu.init('{{ session.user_nome }}', '{{ session.user_role }}');
-  });
-</script>
-</body>
-</html>
+
