@@ -289,9 +289,11 @@ function smToggleSidebar() {
     {% endif %}
 </script>
 <script src="{{ url_for('static', filename='js/user-menu.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-modal.js') }}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     SMUserMenu.init('{{ session.user_nome }}', '{{ session.user_role }}');
+    SMSettings.init('{{ session.user_nome }}', '{{ session.user_role }}', {{ session.user_id }});
   });
 </script>
 </body>

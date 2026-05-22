@@ -33,7 +33,7 @@ const SMUserMenu = (() => {
 
     function _renderMenu(nome, role) {
         const adminItem = isAdmin ? `
-            <a href="/admin" class="sm-user-menu-item">
+            <a href="#" class="sm-user-menu-item" data-sms-aba="usuarios">
                 <i class="ti ti-shield"></i> Admin
             </a>` : '';
 
@@ -43,7 +43,7 @@ const SMUserMenu = (() => {
                 <div class="sm-user-menu-role">${role}</div>
             </div>
             <div class="sm-user-menu-body">
-                <a href="/configuracoes" class="sm-user-menu-item" id="sm-menu-config">
+                <a href="#" class="sm-user-menu-item" data-sms-aba="perfil">
                     <i class="ti ti-settings"></i> Configurações
                 </a>
                 ${adminItem}
@@ -52,9 +52,6 @@ const SMUserMenu = (() => {
                     <i class="ti ti-logout"></i> Sair
                 </a>
             </div>`;
-
-        // Configurações — navega para /configuracoes
-        // (o href já cuida da navegação)
     }
 
     function _abrir(trigger, nome, role) {
